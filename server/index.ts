@@ -3,6 +3,10 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { db } from './db';
 import { units, products } from './db/schema';
+import recipeRoutes from './routes/recipes';
+import inventoryRoutes from './routes/inventory';
+import productionRoutes from './routes/production';
+import purchaseRoutes from './routes/purchases';
 
 const app = new Hono();
 
@@ -57,7 +61,12 @@ api.post('/products', async (c) => {
     }
 });
 
+// Mount Routes
 app.route('/api', api);
+app.route('/api/recipes', recipeRoutes);
+app.route('/api/inventory', inventoryRoutes);
+app.route('/api/production', productionRoutes);
+app.route('/api/purchases', purchaseRoutes);
 
 const port = 3000;
 console.log(`Server is running on port ${port}`);
