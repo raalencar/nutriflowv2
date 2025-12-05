@@ -3,13 +3,27 @@ import { sql } from 'drizzle-orm';
 
 export const unitTypeEnum = pgEnum('unit_type', ['hub', 'spoke']);
 export const unitStatusEnum = pgEnum('unit_status', ['active', 'inactive']);
+export const mealOfferStatusEnum = pgEnum('meal_offer_status', ['active', 'inactive']);
+
+export const mealOffers = pgTable('meal_offers', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    name: text('name').notNull(),
+    description: text('description'),
+    status: mealOfferStatusEnum('status').default('active').notNull(),
+});
 
 export const units = pgTable('units', {
     id: uuid('id').defaultRandom().primaryKey(),
     name: text('name').notNull(),
     address: text('address'),
+    fullAddress: text('full_address'),
     phone: text('phone'),
     manager: text('manager'),
+    contractNumber: text('contract_number'),
+    contractManager: text('contract_manager'),
+    mealOffers: text('meal_offers').array(),
+    latitude: numeric('latitude'),
+    longitude: numeric('longitude'),
     type: unitTypeEnum('type').notNull(),
     status: unitStatusEnum('status').default('active').notNull(),
 });
