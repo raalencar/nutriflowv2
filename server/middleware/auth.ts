@@ -15,6 +15,9 @@ type AuthVariables = {
 
 export const authMiddleware = createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
     try {
+        if (!process.env.CLERK_SECRET_KEY) {
+            console.error("CRITICAL: CLERK_SECRET_KEY is missing in environment variables.");
+        }
         const authHeader = c.req.header('Authorization');
         if (!authHeader?.startsWith('Bearer ')) {
             return c.json({ error: 'Unauthorized: Missing token' }, 401);

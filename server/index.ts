@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -26,15 +27,9 @@ const api = new Hono();
 // Apply Auth Middleware to all API routes
 app.use('/api/*', authMiddleware);
 
+
 // Mount Admin Routes
 app.route('/api/admin', adminRoutes);
-
-// Mount Routes
-app.route('/api', api);
-app.route('/api/recipes', recipeRoutes);
-app.route('/api/inventory', inventoryRoutes);
-app.route('/api/production', productionRoutes);
-app.route('/api/purchases', purchaseRoutes);
 
 
 // Units
@@ -80,6 +75,13 @@ api.post('/products', async (c) => {
         return c.json({ error: 'Internal Server Error' }, 500);
     }
 });
+
+// Mount Routes
+app.route('/api', api);
+app.route('/api/recipes', recipeRoutes);
+app.route('/api/inventory', inventoryRoutes);
+app.route('/api/production', productionRoutes);
+app.route('/api/purchases', purchaseRoutes);
 
 const port = 3000;
 console.log(`Server is running on port ${port}`);

@@ -87,8 +87,11 @@ api.post('/', async (c) => {
         return c.json({ ...result, message: 'Recipe created successfully' }, 201);
 
     } catch (error) {
-        console.error(error);
-        return c.json({ error: 'Failed to create recipe' }, 500);
+        console.error("Create Recipe Error:", error);
+        return c.json({
+            error: 'Failed to create recipe',
+            details: error instanceof Error ? error.message : String(error)
+        }, 500);
     }
 });
 
