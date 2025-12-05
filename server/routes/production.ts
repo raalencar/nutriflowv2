@@ -93,4 +93,29 @@ api.post('/:id/complete', async (c) => {
     }
 });
 
+// DELETE /production/:id
+api.delete('/:id', async (c) => {
+    const id = c.req.param('id');
+    try {
+        // Check if plan exists and is not completed
+        const [plan] = await db.select().from(productionPlans).where(eq(productionPlans.id, id));
+
+        if (!plan) {
+            return c.json({ error: 'Plano de produção não encontrado' }, 404);
+        }
+
+        if (plan.status === 'completed') {
+            return c.json({ error: 'Não é possível excluir planos já finalizados' }, 400);
+        }
+
+        // Delete the plan
+        await db.delete(productionPlans).where(eq(productionPlans.id, id));
+
+        return c.json({ message: 'Plano excluído com sucesso' }, 200);
+    } catch (error: any) {
+        console.error(error);
+        return c.json({ error: error.message || 'Erro ao excluir plano' }, 500);
+    }
+});
+
 export default api;

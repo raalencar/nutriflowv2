@@ -91,8 +91,14 @@ api.delete('/units/:id', async (c) => {
         const result = await db.delete(units).where(eq(units.id, id)).returning();
         if (result.length === 0) return c.json({ error: 'Not Found' }, 404);
         return c.json({ message: 'Deleted' });
-    } catch (error) {
+    } catch (error: any) {
         console.error(error);
+        // Check for foreign key constraint violation
+        if (error.code === '23503') {
+            return c.json({
+                error: 'Esta unidade não pode ser excluída pois está sendo utilizada no sistema.'
+            }, 409);
+        }
         return c.json({ error: 'Internal Server Error' }, 500);
     }
 });
@@ -118,6 +124,50 @@ api.post('/products', async (c) => {
         return c.json({ error: 'Internal Server Error' }, 500);
     }
 });
+
+api.get('/products/:id', async (c) => {
+    try {
+        const id = c.req.param('id');
+        const product = await db.select().from(products).where(eq(products.id, id));
+        if (product.length === 0) return c.json({ error: 'Not Found' }, 404);
+        return c.json(product[0]);
+    } catch (error) {
+        console.error(error);
+        return c.json({ error: 'Internal Server Error' }, 500);
+    }
+});
+
+api.put('/products/:id', async (c) => {
+    try {
+        const id = c.req.param('id');
+        const body = await c.req.json();
+        const result = await db.update(products).set(body).where(eq(products.id, id)).returning();
+        if (result.length === 0) return c.json({ error: 'Not Found' }, 404);
+        return c.json(result[0]);
+    } catch (error) {
+        console.error(error);
+        return c.json({ error: 'Internal Server Error' }, 500);
+    }
+});
+
+api.delete('/products/:id', async (c) => {
+    try {
+        const id = c.req.param('id');
+        const result = await db.delete(products).where(eq(products.id, id)).returning();
+        if (result.length === 0) return c.json({ error: 'Not Found' }, 404);
+        return c.json({ message: 'Deleted' });
+    } catch (error: any) {
+        console.error(error);
+        // Check for foreign key constraint violation
+        if (error.code === '23503') {
+            return c.json({
+                error: 'Este produto não pode ser excluído pois está sendo utilizado em uma ou mais fichas técnicas.'
+            }, 409);
+        }
+        return c.json({ error: 'Internal Server Error' }, 500);
+    }
+});
+
 
 // Mount Routes
 app.route('/api', api);
