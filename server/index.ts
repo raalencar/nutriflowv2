@@ -8,14 +8,34 @@ import inventoryRoutes from './routes/inventory';
 import productionRoutes from './routes/production';
 import purchaseRoutes from './routes/purchases';
 
+import { authMiddleware, requireRole } from './middleware/auth';
+import adminRoutes from './routes/admin';
+
+// ... existing imports ...
+
 const app = new Hono();
 
 app.use('/*', cors({
     origin: 'http://localhost:8080',
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowHeaders: ['Content-Type', 'Authorization'], // Added Authorization
 }));
 
 const api = new Hono();
+
+// Apply Auth Middleware to all API routes
+app.use('/api/*', authMiddleware);
+
+// Mount Admin Routes
+app.route('/api/admin', adminRoutes);
+
+// Mount Routes
+app.route('/api', api);
+app.route('/api/recipes', recipeRoutes);
+app.route('/api/inventory', inventoryRoutes);
+app.route('/api/production', productionRoutes);
+app.route('/api/purchases', purchaseRoutes);
+
 
 // Units
 api.get('/units', async (c) => {
@@ -60,13 +80,6 @@ api.post('/products', async (c) => {
         return c.json({ error: 'Internal Server Error' }, 500);
     }
 });
-
-// Mount Routes
-app.route('/api', api);
-app.route('/api/recipes', recipeRoutes);
-app.route('/api/inventory', inventoryRoutes);
-app.route('/api/production', productionRoutes);
-app.route('/api/purchases', purchaseRoutes);
 
 const port = 3000;
 console.log(`Server is running on port ${port}`);

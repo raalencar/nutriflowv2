@@ -1,0 +1,106 @@
+import { Hono } from 'hono';
+import { db } from '../db';
+import { userUnits } from '../db/schema';
+import { eq, and } from 'drizzle-orm';
+import { requireRole } from '../middleware/auth';
+
+const admin = new Hono();
+
+// Protect all admin routes
+// admin.use('*', requireRole(['admin'])); 
+// Commented out for now to allow testing without role setup, 
+// BUT per plan we should protect it. Let's protect it.
+// If I can't easily get a token with 'admin' role during manual verification, I'll have to momentarily disable it or mock it.
+// For production code, it MUST be there.
+admin.use('*', requireRole(['admin']));
+
+// List users and their units (simplified - normally fetching users from Clerk + local units)
+// Since we don't have Clerk Secret Key setup confirmed for fetching users list vs Clerk API,
+// We will just list users who HAVE units assigned or implement a way to "register" them in our query.
+// Realistically, to list ALL users, we need Clerk API.
+// For now, I'll return a placeholder or just the local assignments.
+// Let's implement storing a sync'd user list or just fetching from Clerk if env var is present.
+// Given constraints, I'll implement "Manage Access" based on email lookup? 
+// No, the frontend "Invite" flow usually handles user creation.
+// Let's assume the frontend passes the Clerk User ID for now.
+// I will create endpoints to just manage the `user_units` table.
+
+admin.post('/user-units', async (c) => {
+    try {
+        const { userId, unitId } = await c.req.json();
+
+        if (!userId || !unitId) {
+            return c.json({ error: 'Missing userId or unitId' }, 400);
+        }
+
+        // Check if already exists
+        const existing = await db.select().from(userUnits)
+            .where(and(eq(userUnits.userId, userId), eq(userUnits.unitId, unitId)))
+            .limit(1);
+
+        if (existing.length > 0) {
+            return c.json({ message: 'Access already granted' });
+        }
+
+        await db.insert(userUnits).values({ userId, unitId });
+        return c.json({ message: 'Access granted' });
+    } catch (error) {
+        console.error(error);
+        return c.json({ error: 'Internal Server Error' }, 500);
+    }
+});
+
+admin.delete('/user-units', async (c) => {
+    try {
+        const { userId, unitId } = await c.req.json();
+        if (!userId || !unitId) {
+            return c.json({ error: 'Missing userId or unitId' }, 400);
+        }
+
+        await db.delete(userUnits)
+            .where(and(eq(userUnits.userId, userId), eq(userUnits.unitId, unitId)));
+
+        return c.json({ message: 'Access revoked' });
+    } catch (error) {
+        console.error(error);
+        return c.json({ error: 'Internal Server Error' }, 500);
+    }
+});
+
+// Get units for a specific user (admin view)
+admin.get('/users/:userId/units', async (c) => {
+    const userId = c.req.param('userId');
+    try {
+        const units = await db.select().from(userUnits).where(eq(userUnits.userId, userId));
+        return c.json(units);
+    } catch (error) {
+        console.error(error);
+        return c.json({ error: 'Internal Server Error' }, 500);
+    }
+});
+
+// List all users (Mocked or simple implementation)
+// In a real app with Clerk, we would use clerkClient.users.getUserList()
+admin.get('/users', async (c) => {
+    // For now, return a mocked list + existing DB users logic if needed.
+    // Or if we want to be fancy, we can try to use the Clerk SDK if configured.
+    // Let's return the mocked structure the frontend expects,
+    // but clearly marked.
+    return c.json([
+        { id: "user_2p...", imageUrl: "", firstName: "Admin", lastName: "User", publicMetadata: { role: ["admin"] }, email: "admin@example.com" },
+        { id: "user_2q...", imageUrl: "", firstName: "Gerente", lastName: "Silva", publicMetadata: { role: ["manager"] }, email: "gerente@example.com" },
+    ]);
+});
+
+// Update user role (Mocked - Real implementation requires Clerk Backend API)
+admin.put('/users/:userId/role', async (c) => {
+    const userId = c.req.param('userId');
+    const { role } = await c.req.json(); // expect array of roles
+
+    // Here we would call clerkClient.users.updateUser(userId, { publicMetadata: { role: role } })
+    console.log(`[Mock] Updating user ${userId} role to ${role}`);
+
+    return c.json({ success: true, message: 'Role updated (mock)' });
+});
+
+export default admin;

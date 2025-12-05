@@ -14,6 +14,14 @@ export const units = pgTable('units', {
     status: unitStatusEnum('status').default('active').notNull(),
 });
 
+export const userUnits = pgTable('user_units', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: text('user_id').notNull(), // Clerk User ID
+    unitId: uuid('unit_id').references(() => units.id).notNull(),
+}, (t) => ({
+    unq: unique().on(t.userId, t.unitId),
+}));
+
 export const purchaseTypeEnum = pgEnum('purchase_type', ['central', 'local']);
 export const productStatusEnum = pgEnum('product_status', ['active', 'inactive']);
 
