@@ -21,26 +21,34 @@ import authRoutes from './routes/auth';
 
 const app = new Hono();
 
-// 1. CORS deve ser a PRIMEIRA coisa
+// 1. CORS deve ser a PRIMEIRA coisa - Configuração Robusta
 app.use('/*', cors({
-    origin: [
-        'http://localhost:8080', // Desenvolvimento Local
-        'http://localhost:5173', // Vite Padrão
-        'https://app.rd7solucoes.com.br', // Seu domínio de Produção
-        'https://nutriflowv2-production.up.railway.app' // Próprio domínio (opcional)
-    ],
-    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    origin: (origin) => {
+        // Permitir acesso local para desenvolvimento
+        if (!origin || origin.startsWith('http://localhost')) return origin;
+
+        // Permitir domínio de produção exato (sem barra final)
+        if (origin === 'https://app.rd7solucoes.com.br') return origin;
+
+        // Permitir domínio do próprio Railway (para testes de API)
+        if (origin && origin.endsWith('.railway.app')) return origin;
+
+        console.warn('🚫 Bloqueio CORS para origem:', origin); // Log de segurança
+        return null; // Bloqueia outros
+    },
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
-    exposeHeaders: ['Content-Length'],
-    maxAge: 86400,
     credentials: true,
 }));
 
-// Global Error Handler
+// Health Check Route
+app.get('/', (c) => {
+    return c.json({ status: 'ok', version: '1.0', timestamp: new Date().toISOString() });
+});
+
+// Global Error Handler - Simples, sem interferir no CORS
 app.onError((err, c) => {
     console.error(`[ERROR] ${err.message}`, err);
-    // O middleware de CORS acima já deve tratar os headers, mas em caso de erro fatal
-    // garantimos que o cliente receba JSON e não fique pendurado.
     return c.json({ error: 'Internal Server Error', message: err.message }, 500);
 });
 
