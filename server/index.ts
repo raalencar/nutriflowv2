@@ -23,30 +23,36 @@ import authRoutes from './routes/auth';
 
 const app = new Hono();
 
+// Global Error Handler with CORS
+app.onError((err, c) => {
+    console.error(`[ERROR] ${err.message}`, err);
+    c.header('Access-Control-Allow-Origin', c.req.header('Origin') || '*');
+    c.header('Access-Control-Allow-Credentials', 'true');
+    return c.json({ error: 'Internal Server Error', message: err.message }, 500);
+});
+
+// Explicit Options Handler
+app.options('/*', (c) => {
+    const origin = c.req.header('Origin');
+    if (origin) {
+        c.header('Access-Control-Allow-Origin', origin);
+        c.header('Access-Control-Allow-Credentials', 'true');
+        c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Origin, Accept');
+        c.header('Access-Control-Max-Age', '86400');
+    }
+    return c.body(null, 204);
+});
+
 app.use('/*', cors({
     origin: (origin) => {
-        const allowed = [
-            'http://localhost:8080',
-            'https://app.rd7solucoes.com.br',
-            'http://localhost:5173',
-            'https://nutriflow.rd7solucoes.com.br'
-        ];
-
-        // If no origin (server-to-server), allow.
-        if (!origin) return allowed[0]; // or any
-
-        // Check if origin is allowed
-        if (allowed.includes(origin) || origin.startsWith('http://localhost')) {
-            return origin;
-        }
-
-        // Default strict fallback (this will block others)
-        return allowed[1];
+        // Allow all known origins + localhost
+        return origin || '*';
     },
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'], // Added more headers
-    exposeHeaders: ['Content-Length', 'X-Kuma-Revision'],
-    maxAge: 600,
+    allowHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
+    exposeHeaders: ['Content-Length'],
+    maxAge: 86400,
     credentials: true,
 }));
 
