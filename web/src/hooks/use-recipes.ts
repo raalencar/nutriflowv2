@@ -1,10 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getRecipes, createRecipe, updateRecipe, deleteRecipe, CreateRecipeDTO, UpdateRecipeDTO } from "@/lib/api";
 
-export function useRecipes() {
+export function useRecipes(unitId?: string) {
     return useQuery({
-        queryKey: ["recipes"],
-        queryFn: getRecipes,
+        queryKey: ["recipes", unitId],
+        queryFn: () => getRecipes(unitId),
     });
 }
 

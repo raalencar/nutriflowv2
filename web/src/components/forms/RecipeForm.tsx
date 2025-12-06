@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { recipeSchema, RecipeFormValues } from "@/lib/schemas";
-import { Product } from "@/types";
+import { Product, Unit } from "@/types";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +39,7 @@ interface RecipeFormProps {
     isSubmitting?: boolean;
     editMode?: boolean;
     products: Product[];
+    units: Unit[];
 }
 
 export function RecipeForm({
@@ -47,10 +48,12 @@ export function RecipeForm({
     isSubmitting = false,
     editMode = false,
     products,
+    units,
 }: RecipeFormProps) {
     const form = useForm<RecipeFormValues>({
         resolver: zodResolver(recipeSchema),
         defaultValues: defaultValues || {
+            unitId: units.length === 1 ? units[0].id : "",
             name: "",
             category: "Prato Principal",
             yield: 1,
@@ -60,6 +63,12 @@ export function RecipeForm({
             ingredients: [],
         },
     });
+
+    useEffect(() => {
+        if (!editMode && units.length === 1) {
+            form.setValue("unitId", units[0].id);
+        }
+    }, [units, editMode, form]);
 
     const { fields, append, remove } = useFieldArray({
         control: form.control,
@@ -135,6 +144,33 @@ export function RecipeForm({
 
                     {/* Tab Resumo */}
                     <TabsContent value="resumo" className="space-y-4 mt-4">
+                        <FormField
+                            control={form.control}
+                            name="unitId"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Unidade</FormLabel>
+                                    <Select
+                                        onValueChange={field.onChange}
+                                        value={field.value}
+                                        disabled={!editMode && units.length === 1}
+                                    >
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Selecione a Unidade" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {units.map((unit) => (
+                                                <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
                         <FormField
                             control={form.control}
                             name="name"

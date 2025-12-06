@@ -8,12 +8,35 @@ const api = new Hono();
 // GET /recipes
 api.get('/', async (c) => {
     try {
-        const allRecipes = await db.select().from(recipes);
+        const unitId = c.req.query('unitId');
+        const user = c.get('user' as any) as any;
+        const isAdmin = user.role === 'admin';
+
+        let query = db.select().from(recipes);
+
+        if (isAdmin) {
+            if (unitId) query.where(eq(recipes.unitId, unitId));
+        } else {
+            const { getUserAllowedUnits } = await import('../middleware/auth');
+            const allowedIds = await getUserAllowedUnits(user.id);
+
+            if (allowedIds.length === 0) return c.json([]);
+
+            if (unitId) {
+                if (!allowedIds.includes(unitId)) {
+                    return c.json({ error: 'Forbidden: Access to this unit is denied' }, 403);
+                }
+                query.where(eq(recipes.unitId, unitId));
+            } else {
+                const { inArray } = await import('drizzle-orm');
+                query.where(inArray(recipes.unitId, allowedIds));
+            }
+        }
+
+        const allRecipes = await query;
+        if (allRecipes.length === 0) return c.json([]);
 
         // For each recipe, fetch ingredients and calculate cost
-        // This could be optimized with a complex join query, but loop is simpler for logic clarity for now
-        // and given we need to sum(product.price * recipeIngredient.grossQty)
-
         const detailedRecipes = await Promise.all(allRecipes.map(async (recipe) => {
             const ingredients = await db
                 .select({
@@ -32,15 +55,10 @@ api.get('/', async (c) => {
                 .where(eq(recipeIngredients.recipeId, recipe.id));
 
             const costPerServing = ingredients.reduce((acc, ing) => {
-                // Simple cost calc: price * grossQty
-                // Note: Assuming unit conversion is handled or units match. 
-                // Real ERPs have unit conversion tables. For simplicty we assume matching units for now
-                // or that price is "per base unit" and grossQty is in that same unit.
                 const price = parseFloat(ing.productPrice || '0');
                 const qty = parseFloat(ing.grossQty || '0');
                 return acc + (price * qty);
-            }, 0) / parseFloat(recipe.yield || '1'); // Cost is total / yield? Or per recipe?
-            // Requirement says "costPerServing". So Total Cost / Yield.
+            }, 0) / parseFloat(recipe.yield || '1');
 
             return {
                 ...recipe,
@@ -59,13 +77,30 @@ api.get('/', async (c) => {
 // POST /recipes
 api.post('/', async (c) => {
     try {
+        const user = c.get('user' as any) as any;
         const body = await c.req.json();
-        const { ingredients, ...recipeData } = body;
+        const { ingredients, unitId, ...recipeData } = body;
+
+        if (!unitId) {
+            return c.json({ error: 'Unit ID is required' }, 400);
+        }
+
+        // Validate access
+        if (user.role !== 'admin') {
+            const { getUserAllowedUnits } = await import('../middleware/auth');
+            const allowedIds = await getUserAllowedUnits(user.id);
+            if (!allowedIds.includes(unitId)) {
+                return c.json({ error: 'Forbidden: You cannot create recipes for this unit' }, 403);
+            }
+        }
 
         // Transaction
         const result = await db.transaction(async (tx) => {
             // 1. Create Recipe
-            const [newRecipe] = await tx.insert(recipes).values(recipeData).returning();
+            const [newRecipe] = await tx.insert(recipes).values({
+                ...recipeData,
+                unitId: unitId
+            }).returning();
 
             // 2. Create Ingredients
             if (ingredients && ingredients.length > 0) {

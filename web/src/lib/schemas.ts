@@ -46,6 +46,7 @@ export const recipeIngredientSchema = z.object({
 });
 
 export const recipeSchema = z.object({
+    unitId: z.string().min(1, "Selecione uma unidade"),
     name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
     category: z.string().optional(),
     yield: z.coerce.number().positive("Rendimento deve ser positivo"),

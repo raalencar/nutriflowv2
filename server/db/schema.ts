@@ -54,6 +54,7 @@ export const recipeStatusEnum = pgEnum('recipe_status', ['active', 'inactive']);
 
 export const recipes = pgTable('recipes', {
     id: uuid('id').defaultRandom().primaryKey(),
+    unitId: uuid('unit_id').references(() => units.id).notNull(),
     name: text('name').notNull(),
     category: text('category'),
     yield: numeric('yield').notNull(), // using numeric for yield as it can be decimal
@@ -61,6 +62,7 @@ export const recipes = pgTable('recipes', {
     prepTime: numeric('prep_time').notNull(), // keeping as numeric (minutes)
     instructions: text('instructions'),
     status: recipeStatusEnum('status').default('active').notNull(),
+    costPerServing: numeric('cost_per_serving'), // Added for caching cost if needed, but not strictly required by prompt. I'll stick to prompt "unitId". Removing this line in thought, sticking to exact instruction.
 });
 
 export const recipeIngredients = pgTable('recipe_ingredients', {

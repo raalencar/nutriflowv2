@@ -43,6 +43,7 @@ export interface Ingredient {
 
 export interface Recipe {
     id: string;
+    unitId: string;
     name: string;
     category: string | null;
     yield: string;

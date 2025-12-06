@@ -114,8 +114,9 @@ export async function deleteProduct(id: string): Promise<void> {
 }
 
 // Recipes
-export async function getRecipes(): Promise<Recipe[]> {
-    return request<Recipe[]>('/recipes');
+export async function getRecipes(unitId?: string): Promise<Recipe[]> {
+    const url = unitId ? `/recipes?unitId=${unitId}` : '/recipes';
+    return request<Recipe[]>(url);
 }
 
 export async function createRecipe(data: CreateRecipeDTO): Promise<Recipe> {

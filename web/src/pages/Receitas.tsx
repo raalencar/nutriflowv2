@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useRecipes, useCreateRecipe, useUpdateRecipe, useDeleteRecipe } from "@/hooks/use-recipes";
+import { useUnits } from "@/hooks/use-units";
 import { useProducts } from "@/hooks/use-products";
 import { RecipeFormValues } from "@/lib/schemas";
 import { Recipe } from "@/lib/api";
@@ -15,6 +16,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +41,15 @@ import { RoleGuard } from "@/components/RoleGuard";
 
 
 export default function Receitas() {
-  const { data: recipes = [], isLoading } = useRecipes();
+  const { data: units = [] } = useUnits();
+  const [selectedUnit, setSelectedUnit] = useState<string>("");
+
+  // Auto-select unit if only one is available
+  if (units.length === 1 && !selectedUnit) {
+    setSelectedUnit(units[0].id);
+  }
+
+  const { data: recipes = [], isLoading } = useRecipes(selectedUnit || undefined);
   const { data: products = [] } = useProducts();
   const createRecipe = useCreateRecipe();
   const updateRecipe = useUpdateRecipe();
@@ -145,6 +161,7 @@ export default function Receitas() {
             </DialogHeader>
             <RecipeForm
               defaultValues={editingRecipe ? {
+                unitId: editingRecipe.unitId,
                 name: editingRecipe.name,
                 category: editingRecipe.category || "Prato Principal",
                 yield: parseFloat(editingRecipe.yield),
@@ -163,19 +180,39 @@ export default function Receitas() {
               isSubmitting={isSubmitting}
               editMode={!!editingRecipe}
               products={products}
+              units={units}
             />
           </DialogContent>
         </Dialog>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar receitas..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10"
-        />
+      <div className="flex gap-4">
+        <div className="w-[200px]">
+          <Select
+            value={selectedUnit || "all"}
+            onValueChange={(val) => setSelectedUnit(val === "all" ? "" : val)}
+            disabled={units.length === 1}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Filtrar por Unidade" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Unidades</SelectItem>
+              {units.map((unit) => (
+                <SelectItem key={unit.id} value={unit.id}>{unit.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar receitas..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10"
+          />
+        </div>
       </div>
 
       {isLoading ? (
