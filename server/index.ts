@@ -19,29 +19,51 @@ import userRoutes from './routes/users';
 import teamRoutes from './routes/teams';
 import authRoutes from './routes/auth';
 
+
 const app = new Hono();
+
+// Diagnostic Logs
+console.log('🚀 Server starting...');
+console.log('📍 Allowed Frontend Origin:', process.env.FRONTEND_URL || 'http://localhost:8080');
+console.log('🗄️  Database URL configured:', !!process.env.DATABASE_URL);
+console.log('🔑 JWT Secret configured:', !!process.env.JWT_SECRET);
 
 // 1. CORS deve ser a PRIMEIRA coisa - Configuração Robusta
 app.use('/*', cors({
     origin: (origin) => {
+        const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:8080';
+
         // Permitir acesso local para desenvolvimento
         if (!origin || origin.startsWith('http://localhost')) return origin;
 
-        // Permitir domínio de produção exato (sem barra final)
-        if (origin === 'https://app.rd7solucoes.com.br') return origin;
+        // Permitir domínio de produção via env var
+        if (origin === allowedOrigin) return origin;
 
         // Permitir domínio do próprio Railway (para testes de API)
         if (origin && origin.endsWith('.railway.app')) return origin;
 
-        console.warn('🚫 Bloqueio CORS para origem:', origin); // Log de segurança
-        return null; // Bloqueia outros
+        console.warn('🚫 Bloqueio CORS para origem:', origin);
+        return null;
     },
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
     credentials: true,
 }));
 
-// Health Check Route
+
+// Health Check Route - Deve estar ANTES do authMiddleware
+app.get('/health', (c) => {
+    return c.json({
+        status: 'ok',
+        version: '1.0',
+        timestamp: new Date().toISOString(),
+        env: process.env.NODE_ENV || 'development',
+        dbConfigured: !!process.env.DATABASE_URL,
+        jwtConfigured: !!process.env.JWT_SECRET
+    });
+});
+
+// Root route
 app.get('/', (c) => {
     return c.json({ status: 'ok', version: '1.0', timestamp: new Date().toISOString() });
 });

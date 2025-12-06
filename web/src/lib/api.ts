@@ -11,7 +11,9 @@ import {
     Team, CreateTeamDTO, UpdateTeamDTO
 } from '../types';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+console.log('🌐 Frontend API URL:', API_URL);
 
 let authToken: string | null = null;
 
