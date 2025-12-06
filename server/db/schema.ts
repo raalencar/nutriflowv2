@@ -137,6 +137,7 @@ export const users = pgTable('users', {
     name: text('name'),
     role: userRoleEnum('role').default('operator').notNull(),
     status: userStatusEnum('status').default('active').notNull(),
+    password: text('password'), // Hashed password
     createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
 });
 

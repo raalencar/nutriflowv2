@@ -16,6 +16,7 @@ import webhookRoutes from './routes/webhook';
 import mealOffersRoutes from './routes/meal-offers';
 import userRoutes from './routes/users';
 import teamRoutes from './routes/teams';
+import authRoutes from './routes/auth';
 
 
 // ... existing imports ...
@@ -41,6 +42,7 @@ app.route('/api/webhook', webhookRoutes);
 app.route('/api/meal-offers', mealOffersRoutes);
 app.route('/api/users', userRoutes);
 app.route('/api/teams', teamRoutes);
+app.route('/api/auth', authRoutes);
 
 
 // Units

@@ -1,16 +1,14 @@
 import { createMiddleware } from 'hono/factory';
-import { verifyToken } from '@clerk/backend';
+import { verify } from 'jsonwebtoken';
 import { db } from '../db';
 import { users, userUnits } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
-import { createClerkClient } from '@clerk/backend';
 
-const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
 type AuthVariables = {
     auth: {
         userId: string;
-        sessionId: string;
         roles: string[];
     };
     user: {
@@ -22,10 +20,12 @@ type AuthVariables = {
 };
 
 export const authMiddleware = createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
+    // Exclude public routes
+    if (c.req.path.includes('/auth/')) {
+        return next();
+    }
+
     try {
-        if (!process.env.CLERK_SECRET_KEY) {
-            console.error("CRITICAL: CLERK_SECRET_KEY is missing in environment variables.");
-        }
         const authHeader = c.req.header('Authorization');
         if (!authHeader?.startsWith('Bearer ')) {
             return c.json({ error: 'Unauthorized: Missing token' }, 401);
@@ -33,49 +33,25 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables }>(asy
 
         const token = authHeader.split(' ')[1];
 
-        // Verify token with Clerk
-        const verifiedToken = await verifyToken(token, {
-            secretKey: process.env.CLERK_SECRET_KEY,
-        });
-
-        const payload = verifiedToken as any;
-        const userId = payload.sub;
+        // Verify token (Local JWT)
+        const payload = verify(token, JWT_SECRET) as any;
+        const userId = payload.id;
 
         // Check if user exists in local DB
-        let localUser = await db.select().from(users).where(eq(users.id, userId)).limit(1).then(res => res[0]);
+        const localUser = await db.select().from(users).where(eq(users.id, userId)).limit(1).then(res => res[0]);
 
         if (!localUser) {
-            // Fetch user details from Clerk to populate initial data
-            try {
-                const clerkUser = await clerkClient.users.getUser(userId);
-                const primaryEmail = clerkUser.emailAddresses.find(e => e.id === clerkUser.primaryEmailAddressId)?.emailAddress;
-
-                if (primaryEmail) {
-                    const newUser = await db.insert(users).values({
-                        id: userId,
-                        email: primaryEmail,
-                        name: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim(),
-                        role: 'operator', // Default role
-                        status: 'active'
-                    }).returning();
-                    localUser = newUser[0];
-                }
-            } catch (err) {
-                console.error("Error syncing user from Clerk:", err);
-            }
+            return c.json({ error: 'Unauthorized: User not found' }, 401);
         }
 
-        const roles = localUser ? [localUser.role] : [];
+        const roles = [localUser.role];
 
         c.set('auth', {
-            userId: payload.sub,
-            sessionId: payload.sid,
-            roles: roles // Use local DB role
+            userId: localUser.id,
+            roles: roles
         });
 
-        if (localUser) {
-            c.set('user', localUser);
-        }
+        c.set('user', localUser);
 
         await next();
     } catch (error) {

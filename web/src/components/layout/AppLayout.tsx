@@ -2,9 +2,32 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-// ... imports ...
+import {
+  LayoutDashboard,
+  Building2,
+  Package,
+  ChefHat,
+  Warehouse,
+  ShoppingCart,
+  CalendarCheck,
+  Users,
+  Menu,
+  X,
+  LogOut,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-// ... navigation ...
+const navigation = [
+  { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Unidades", href: "/unidades", icon: Building2 },
+  { name: "Insumos", href: "/insumos", icon: Package },
+  { name: "Fichas Técnicas", href: "/receitas", icon: ChefHat },
+  { name: "Estoque", href: "/estoque", icon: Warehouse },
+  { name: "Compras", href: "/compras", icon: ShoppingCart },
+  { name: "Produção", href: "/producao", icon: CalendarCheck },
+  { name: "Colaboradores", href: "/colaboradores", icon: Users },
+  { name: "Equipes", href: "/equipes", icon: Users },
+];
 
 interface AppLayoutProps {
   children: React.ReactNode;
