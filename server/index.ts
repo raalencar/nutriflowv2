@@ -10,7 +10,8 @@ import inventoryRoutes from './routes/inventory';
 import productionRoutes from './routes/production';
 import purchaseRoutes from './routes/purchases';
 
-import { authMiddleware, requireRole } from './middleware/auth';
+// Importe getUserAllowedUnits aqui se ele for exportado deste arquivo
+import { authMiddleware, requireRole, getUserAllowedUnits } from './middleware/auth';
 import adminRoutes from './routes/admin';
 import webhookRoutes from './routes/webhook';
 import mealOffersRoutes from './routes/meal-offers';
@@ -18,37 +19,16 @@ import userRoutes from './routes/users';
 import teamRoutes from './routes/teams';
 import authRoutes from './routes/auth';
 
-
-// ... existing imports ...
-
 const app = new Hono();
 
-// Global Error Handler with CORS
-app.onError((err, c) => {
-    console.error(`[ERROR] ${err.message}`, err);
-    c.header('Access-Control-Allow-Origin', c.req.header('Origin') || '*');
-    c.header('Access-Control-Allow-Credentials', 'true');
-    return c.json({ error: 'Internal Server Error', message: err.message }, 500);
-});
-
-// Explicit Options Handler
-app.options('/*', (c) => {
-    const origin = c.req.header('Origin');
-    if (origin) {
-        c.header('Access-Control-Allow-Origin', origin);
-        c.header('Access-Control-Allow-Credentials', 'true');
-        c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Origin, Accept');
-        c.header('Access-Control-Max-Age', '86400');
-    }
-    return c.body(null, 204);
-});
-
+// 1. CORS deve ser a PRIMEIRA coisa
 app.use('/*', cors({
-    origin: (origin) => {
-        // Allow all known origins + localhost
-        return origin || '*';
-    },
+    origin: [
+        'http://localhost:8080', // Desenvolvimento Local
+        'http://localhost:5173', // Vite Padrão
+        'https://app.rd7solucoes.com.br', // Seu domínio de Produção
+        'https://nutriflowv2-production.up.railway.app' // Próprio domínio (opcional)
+    ],
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
     exposeHeaders: ['Content-Length'],
@@ -56,23 +36,29 @@ app.use('/*', cors({
     credentials: true,
 }));
 
+// Global Error Handler
+app.onError((err, c) => {
+    console.error(`[ERROR] ${err.message}`, err);
+    // O middleware de CORS acima já deve tratar os headers, mas em caso de erro fatal
+    // garantimos que o cliente receba JSON e não fique pendurado.
+    return c.json({ error: 'Internal Server Error', message: err.message }, 500);
+});
+
 const api = new Hono();
 
 // Apply Auth Middleware to all API routes
 app.use('/api/*', authMiddleware);
 
-
-
-// Mount Admin Routes
-app.route('/api/admin', adminRoutes); // Keep for legacy if needed, or remove? Plan didn't explicitly say remove.
+// Mount Admin & Other Routes
+app.route('/api/admin', adminRoutes);
 app.route('/api/webhook', webhookRoutes);
 app.route('/api/meal-offers', mealOffersRoutes);
 app.route('/api/users', userRoutes);
 app.route('/api/teams', teamRoutes);
 app.route('/api/auth', authRoutes);
 
+// --- ROTAS DE UNIDADES (Mantidas no index por enquanto) ---
 
-// Units
 api.get('/units', async (c) => {
     try {
         const user = c.get('user' as any) as any;
@@ -81,13 +67,7 @@ api.get('/units', async (c) => {
         let query = db.select().from(units);
 
         if (!isAdmin) {
-            // @ts-ignore - getUserAllowedUnits is exported but might not be picked up by type checking in this context without explicit import update, 
-            // but runtime it works. I will update imports in a separate block or assume I can do it here if I target the top too.
-            // Actually, I should update imports first.
-            // For now, I will write the logic assuming imports are present.
-            // Wait, I can't update imports in the same `replace_file_content` call if they are far apart.
-            // I will do imports in a separate tool call in the same turn.
-            const { getUserAllowedUnits } = await import('./middleware/auth');
+            // Agora usando o import do topo
             const allowedIds = await getUserAllowedUnits(user.id);
 
             if (allowedIds.length === 0) {
@@ -149,7 +129,6 @@ api.delete('/units/:id', async (c) => {
         return c.json({ message: 'Deleted' });
     } catch (error: any) {
         console.error(error);
-        // Check for foreign key constraint violation
         if (error.code === '23503') {
             return c.json({
                 error: 'Esta unidade não pode ser excluída pois está sendo utilizada no sistema.'
@@ -159,7 +138,8 @@ api.delete('/units/:id', async (c) => {
     }
 });
 
-// Products
+// --- ROTAS DE PRODUTOS (Mantidas no index por enquanto) ---
+
 api.get('/products', async (c) => {
     try {
         const allProducts = await db.select().from(products);
@@ -214,7 +194,6 @@ api.delete('/products/:id', async (c) => {
         return c.json({ message: 'Deleted' });
     } catch (error: any) {
         console.error(error);
-        // Check for foreign key constraint violation
         if (error.code === '23503') {
             return c.json({
                 error: 'Este produto não pode ser excluído pois está sendo utilizado em uma ou mais fichas técnicas.'
@@ -223,7 +202,6 @@ api.delete('/products/:id', async (c) => {
         return c.json({ error: 'Internal Server Error' }, 500);
     }
 });
-
 
 // Mount Routes
 app.route('/api', api);
