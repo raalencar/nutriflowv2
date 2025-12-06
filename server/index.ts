@@ -28,17 +28,25 @@ app.use('/*', cors({
         const allowed = [
             'http://localhost:8080',
             'https://app.rd7solucoes.com.br',
-            'http://localhost:5173', // Vite default dev
-            'https://nutriflow.rd7solucoes.com.br' // Valid access
+            'http://localhost:5173',
+            'https://nutriflow.rd7solucoes.com.br'
         ];
-        // Allow localhost and production
-        if (!origin || allowed.includes(origin) || origin.startsWith('http://localhost')) {
+
+        // If no origin (server-to-server), allow.
+        if (!origin) return allowed[0]; // or any
+
+        // Check if origin is allowed
+        if (allowed.includes(origin) || origin.startsWith('http://localhost')) {
             return origin;
         }
-        return allowed[1]; // Fallback to production
+
+        // Default strict fallback (this will block others)
+        return allowed[1];
     },
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization'],
+    allowHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'], // Added more headers
+    exposeHeaders: ['Content-Length', 'X-Kuma-Revision'],
+    maxAge: 600,
     credentials: true,
 }));
 
