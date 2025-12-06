@@ -81,3 +81,58 @@ export const updateUserSchema = z.object({
 
 export type InviteUserFormValues = z.infer<typeof inviteUserSchema>;
 export type UpdateUserFormValues = z.infer<typeof updateUserSchema>;
+
+export const employeeSchema = z.object({
+    // Personal
+    name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
+    email: z.string().email("Email inválido"),
+    cpf: z.string().optional(),
+    rg: z.string().optional(),
+    birthDate: z.string().optional(),
+    phone: z.string().optional(),
+    pis: z.string().optional(),
+
+    // Address
+    addressZip: z.string().optional(),
+    addressStreet: z.string().optional(),
+    addressNumber: z.string().optional(),
+    addressComp: z.string().optional(),
+    addressDistrict: z.string().optional(),
+    addressCity: z.string().optional(),
+    addressState: z.string().optional(),
+
+    // Contract
+    role: z.enum(["admin", "manager", "operator"]),
+    unitId: z.string().optional(),
+    admissionDate: z.string().optional(),
+    hourlyRate: z.string().optional(),
+
+    // Schedule
+    workSchedule: z.object({
+        type: z.enum(["standard", "12x36", "flexible"]),
+        startTime: z.string().optional(),
+        endTime: z.string().optional(),
+        workDays: z.array(z.number()).optional(), // 0-6
+    }).optional(),
+
+}).refine((data) => {
+    if (data.role !== 'admin' && !data.unitId) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Unidade é obrigatória para este cargo",
+    path: ["unitId"],
+}).refine((data) => {
+    if (data.workSchedule?.type === 'standard') {
+        if (!data.workSchedule.startTime || !data.workSchedule.endTime) {
+            return false;
+        }
+    }
+    return true;
+}, {
+    message: "Horários de entrada e saída são obrigatórios para Jornada Padrão",
+    path: ["workSchedule"],
+});
+
+export type EmployeeFormValues = z.infer<typeof employeeSchema>;

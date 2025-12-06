@@ -1,0 +1,77 @@
+Categoria,Produto,Unidade de Medida
+Horti,Acelga,KG
+Horti,Alface,KG
+Horti,Pepino,KG
+Horti,Banana,KG
+Horti,Laranja,KG
+Horti,Melancia,KG
+Horti,Mamão,KG
+Horti,Cebola,KG
+Horti,Cheiro verde ,UND
+Horti,Pimentinha de cheiro,KG
+Horti,Alho,KG
+Horti,Tomate,KG
+Horti,Pimentão,KG
+Horti,Batata inglesa,KG
+Horti,Cenoura,KG
+Horti,Chuchu,KG
+Horti,Beterraba,KG
+Horti,Repolho,KG
+Polpa,Polpa de goiaba,KG
+Polpa,Polpa de cajá,KG
+Polpa,Polpa de acerola,KG
+Polpa,Polpa de manga,KG
+Polpa,Polpa de caju,KG
+Proteínas,Ovos,Und
+Proteínas,Filé de frango,KG
+Proteínas,Sassami,KG
+Proteínas,Coxa S/coxa,KG
+Proteínas,Linguiça calabresa,KG
+Proteínas,Linguiça toscana,KG
+Proteínas,Suíno,KG
+Proteínas,Carne bovina,KG
+Proteínas,Carne Moída,KG
+Proteínas,Salsicha,KG
+Secos,Arroz Parbolizado,KG
+Secos,Macarrão,PCT
+Secos,Farinha de milho (Folcão),PCT
+Secos,Farinha de trigo,KG
+Secos,Acucar,KG
+Secos,Café,Pct
+Secos,Leite em pó,Pct
+Secos,Óleo de soja,und
+Secos,Milho de mugunza,kg
+Secos,Margarina,KG
+Secos,Feijão Corda,KG
+Secos,Feijão preto,KG
+Secos,Farinha de mandioca,KG
+Secos,Sal,KG
+Secos,Doce mariola,und
+Secos,Maionese,KG
+Secos,Creme culinário,und
+Secos,Milho verde,Und
+Secos,Ervilha,Und
+Secos,Farinha de trigo,KG
+Secos,Extrato de tomate,Und
+Secos,Leite de coco,UND
+Secos,Mostarda,UND
+Padaria,Bolo fofo,UND
+Padaria,Pães,UND
+Temperos,Colorau,KG
+Temperos,Açafrão,KG
+Temperos,Folha de louro,KG
+Temperos,Paprica,KG
+Temperos,Pimenta do reino,KG
+Temperos,Oregano,KG
+Limpeza,Sabão líquido 5L,UND
+Limpeza,Detergente 5L,UND
+Limpeza,Água sanitária 5L,UND
+Limpeza,Desengordurante 5L,UND
+Limpeza,Sabão em pó,KG
+Limpeza,Alcool,LTS
+Limpeza,Fibraço,UND
+Limpeza,Luva,PCT
+Limpeza,Touca,PCT
+Limpeza,Saco lixo 200L,UND
+Limpeza,Papel higienico PCT 4UND,UND
+Limpeza,Luva de limpeza,UND

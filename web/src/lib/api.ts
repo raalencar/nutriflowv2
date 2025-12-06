@@ -6,7 +6,7 @@ import {
     Stock, InventoryTransactionDTO, InventoryTransaction,
     ProductionPlan, CreateProductionPlanDTO,
     PurchaseOrder, CreatePurchaseOrderDTO,
-    User, UserUnit,
+    User, UserUnit, CreateUserDTO,
     MealOffer, CreateMealOfferDTO, UpdateMealOfferDTO,
     Team, CreateTeamDTO, UpdateTeamDTO
 } from '../types';
@@ -223,6 +223,20 @@ export async function getMe(): Promise<User> {
 // Admin / Users
 export async function getUsers(): Promise<User[]> {
     return request<User[]>('/users');
+}
+
+export async function createUser(data: CreateUserDTO): Promise<User> {
+    return request<User>('/users', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+}
+
+export async function updateUser(id: string, data: Partial<CreateUserDTO>): Promise<User> {
+    return request<User>(`/users/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
 }
 
 export async function updateUserRole(userId: string, role: string): Promise<void> {

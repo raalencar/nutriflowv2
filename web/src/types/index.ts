@@ -140,10 +140,34 @@ export interface User {
     id: string;
     email: string;
     name: string | null;
-    role: string;
+    role: 'admin' | 'manager' | 'operator';
     status: 'active' | 'inactive';
     teams?: { id: string; name: string }[];
+    unitId?: string; // Unidade principal/inicial
+
+    // HR Data
+    cpf?: string | null;
+    rg?: string | null;
+    birthDate?: string | null;
+    phone?: string | null;
+    pis?: string | null;
+
+    // Address
+    addressZip?: string | null;
+    addressStreet?: string | null;
+    addressNumber?: string | null;
+    addressComp?: string | null;
+    addressDistrict?: string | null;
+    addressCity?: string | null;
+    addressState?: string | null;
+
+    // Contract
+    admissionDate?: string | null;
+    hourlyRate?: string | null;
+    workSchedule?: any; // JSON
 }
+
+export type CreateUserDTO = Omit<User, 'id' | 'status' | 'teams'> & { password?: string };
 
 export interface Team {
     id: string;

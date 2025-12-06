@@ -1,4 +1,4 @@
-import { pgTable, text, uuid, pgEnum, numeric, unique } from 'drizzle-orm/pg-core';
+import { pgTable, text, uuid, pgEnum, numeric, unique, json } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 export const unitTypeEnum = pgEnum('unit_type', ['hub', 'spoke']);
@@ -140,6 +140,28 @@ export const users = pgTable('users', {
     role: userRoleEnum('role').default('operator').notNull(),
     status: userStatusEnum('status').default('active').notNull(),
     password: text('password'), // Hashed password
+
+    // HR Data
+    cpf: text('cpf'),
+    rg: text('rg'),
+    birthDate: text('birth_date'),
+    phone: text('phone'),
+    pis: text('pis'),
+
+    // Address
+    addressZip: text('address_zip'),
+    addressStreet: text('address_street'),
+    addressNumber: text('address_number'),
+    addressComp: text('address_comp'),
+    addressDistrict: text('address_district'),
+    addressCity: text('address_city'),
+    addressState: text('address_state'),
+
+    // Contract
+    admissionDate: text('admission_date'),
+    hourlyRate: numeric('hourly_rate'),
+    workSchedule: json('work_schedule'), // stores { type, startTime, endTime, workDays }
+
     createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
 });
 
