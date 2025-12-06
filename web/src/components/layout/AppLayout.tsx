@@ -1,33 +1,10 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useClerk, useUser } from "@clerk/clerk-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import {
-  LayoutDashboard,
-  Building2,
-  Package,
-  ChefHat,
-  Warehouse,
-  ShoppingCart,
-  CalendarCheck,
-  Users,
-  Menu,
-  X,
-  LogOut,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+// ... imports ...
 
-const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Unidades", href: "/unidades", icon: Building2 },
-  { name: "Insumos", href: "/insumos", icon: Package },
-  { name: "Fichas Técnicas", href: "/receitas", icon: ChefHat },
-  { name: "Estoque", href: "/estoque", icon: Warehouse },
-  { name: "Compras", href: "/compras", icon: ShoppingCart },
-  { name: "Produção", href: "/producao", icon: CalendarCheck },
-  { name: "Colaboradores", href: "/colaboradores", icon: Users },
-  { name: "Equipes", href: "/equipes", icon: Users }, // Added Equipes to nav if not already there, assuming user wants it in menu
-];
+// ... navigation ...
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -36,8 +13,7 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
-  const { signOut } = useClerk();
-  const { user } = useUser();
+  const { logout, user } = useAuth();
 
   return (
     <div className="min-h-screen bg-background">
@@ -99,7 +75,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           <Button
             variant="ghost"
             className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            onClick={() => signOut()}
+            onClick={() => logout()}
           >
             <LogOut className="h-5 w-5" />
             Sair
@@ -122,13 +98,9 @@ export function AppLayout({ children }: AppLayoutProps) {
           <div className="flex-1" />
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center overflow-hidden">
-              {user?.imageUrl ? (
-                <img src={user.imageUrl} alt={user.fullName || "User"} className="h-full w-full object-cover" />
-              ) : (
-                <span className="text-sm font-medium text-primary-foreground">
-                  {user?.firstName?.charAt(0) || "U"}
-                </span>
-              )}
+              <span className="text-sm font-medium text-primary-foreground">
+                {user?.name?.charAt(0) || "U"}
+              </span>
             </div>
           </div>
         </header>

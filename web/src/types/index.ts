@@ -142,8 +142,6 @@ export interface User {
     role: string;
     status: 'active' | 'inactive';
     teams?: { id: string; name: string }[];
-    // Legacy/Clerk fields optional for compatibility during transition if needed
-    imageUrl?: string;
 }
 
 export interface Team {

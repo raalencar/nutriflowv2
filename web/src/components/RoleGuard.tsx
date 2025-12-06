@@ -1,4 +1,4 @@
-import { useUser } from "@clerk/clerk-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 
@@ -17,20 +17,20 @@ export function RoleGuard({
     showForbidden = false,
     mode = 'route'
 }: RoleGuardProps) {
-    const { user, isLoaded } = useUser();
+    const { user, isLoading } = useAuth();
 
-    if (!isLoaded) {
+    if (isLoading) {
         return null; // Or a spinner
     }
 
     if (!user) {
         // If inline mode and no user, just hide the content
         if (mode === 'inline') return null;
-        return <Navigate to="/sign-in" />;
+        return <Navigate to="/login" />;
     }
 
-    const userRoles = (user.publicMetadata.role as string[]) || [];
-    const hasAccess = userRoles.some(role => allowedRoles.includes(role)) || userRoles.includes('admin');
+    const userRole = user.role;
+    const hasAccess = allowedRoles.includes(userRole) || userRole === 'admin';
 
     if (!hasAccess) {
         // Inline mode: simply hide children when no access

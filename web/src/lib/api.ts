@@ -200,6 +200,25 @@ export async function receivePurchaseOrder(id: string): Promise<void> {
     });
 }
 
+// Auth
+export async function login(data: any): Promise<{ token: string; user: User }> {
+    return request<{ token: string; user: User }>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+}
+
+export async function forgotPassword(email: string): Promise<void> {
+    return request<void>('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+    });
+}
+
+export async function getMe(): Promise<User> {
+    return request<User>('/auth/me');
+}
+
 // Admin / Users
 export async function getUsers(): Promise<User[]> {
     return request<User[]>('/users');

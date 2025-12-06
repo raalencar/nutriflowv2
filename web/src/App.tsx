@@ -3,9 +3,11 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { SignedIn, SignedOut } from "@clerk/clerk-react";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { PrivateRoute } from "@/components/PrivateRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import Unidades from "./pages/Unidades";
 import Insumos from "./pages/Insumos";
@@ -15,7 +17,6 @@ import Compras from "./pages/Compras";
 import Producao from "./pages/Producao";
 import Colaboradores from "./pages/Colaboradores";
 import Equipes from "./pages/Equipes";
-import { AuthSync } from "@/components/AuthSync";
 import Forbidden from "./pages/Forbidden";
 import NotFound from "./pages/NotFound";
 import { RoleGuard } from "@/components/RoleGuard";
@@ -24,20 +25,18 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <BrowserRouter>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <Routes>
-          <Route path="/login" element={
-            <SignedOut>
-              <Login />
-            </SignedOut>
-          } />
-          <Route path="/*" element={
-            <>
-              <SignedIn>
-                <AuthSync />
+    <AuthProvider>
+      <BrowserRouter>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+
+            {/* Protected Routes */}
+            <Route path="/" element={
+              <PrivateRoute>
                 <AppLayout>
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
@@ -61,15 +60,15 @@ const App = () => (
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </AppLayout>
-              </SignedIn>
-              <SignedOut>
-                <Navigate to="/login" replace />
-              </SignedOut>
-            </>
-          } />
-        </Routes>
-      </TooltipProvider>
-    </BrowserRouter>
+              </PrivateRoute>
+            } />
+            {/* Catch all for unauthenticated trying to access root logic is handled by PrivateRoute above if nested, 
+                 but for flat routes outside: */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </TooltipProvider>
+      </BrowserRouter>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

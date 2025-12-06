@@ -251,9 +251,8 @@ export default function Colaboradores() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar>
-                          <AvatarImage src={user.imageUrl} alt={user.name || "User"} />
                           <AvatarFallback>
-                            <Users className="h-4 w-4" />
+                            {user.name?.charAt(0) || "U"}
                           </AvatarFallback>
                         </Avatar>
                         <span className="font-medium">
