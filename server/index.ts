@@ -24,9 +24,22 @@ import authRoutes from './routes/auth';
 const app = new Hono();
 
 app.use('/*', cors({
-    origin: 'http://localhost:8080',
-    allowMethods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowHeaders: ['Content-Type', 'Authorization'], // Added Authorization
+    origin: (origin) => {
+        const allowed = [
+            'http://localhost:8080',
+            'https://app.rd7solucoes.com.br',
+            'http://localhost:5173', // Vite default dev
+            'https://nutriflow.rd7solucoes.com.br' // Valid access
+        ];
+        // Allow localhost and production
+        if (!origin || allowed.includes(origin) || origin.startsWith('http://localhost')) {
+            return origin;
+        }
+        return allowed[1]; // Fallback to production
+    },
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
 }));
 
 const api = new Hono();
