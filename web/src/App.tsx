@@ -13,6 +13,7 @@ import Estoque from "./pages/Estoque";
 import Compras from "./pages/Compras";
 import Producao from "./pages/Producao";
 import Colaboradores from "./pages/Colaboradores";
+import Equipes from "./pages/Equipes";
 import { AuthSync } from "@/components/AuthSync";
 import Forbidden from "./pages/Forbidden";
 import NotFound from "./pages/NotFound";
@@ -40,6 +41,11 @@ const App = () => (
               <Route path="/colaboradores" element={
                 <RoleGuard allowedRoles={['admin', 'manager']} redirectTo="/forbidden" showForbidden={true}>
                   <Colaboradores />
+                </RoleGuard>
+              } />
+              <Route path="/equipes" element={
+                <RoleGuard allowedRoles={['admin']} redirectTo="/forbidden" showForbidden={true}>
+                  <Equipes />
                 </RoleGuard>
               } />
               <Route path="/forbidden" element={<Forbidden />} />

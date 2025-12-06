@@ -1,16 +1,24 @@
 import { createMiddleware } from 'hono/factory';
 import { verifyToken } from '@clerk/backend';
 import { db } from '../db';
-import { userUnits } from '../db/schema';
+import { users, userUnits } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
+import { createClerkClient } from '@clerk/backend';
 
-// Define context type extension if needed, but for now we'll just attach to c.set/c.get
+const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+
 type AuthVariables = {
     auth: {
         userId: string;
         sessionId: string;
         roles: string[];
     };
+    user: {
+        id: string;
+        email: string;
+        name: string | null;
+        role: string;
+    }
 };
 
 export const authMiddleware = createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
@@ -26,30 +34,48 @@ export const authMiddleware = createMiddleware<{ Variables: AuthVariables }>(asy
         const token = authHeader.split(' ')[1];
 
         // Verify token with Clerk
-        // Note: ensure CLERK_SECRET_KEY and CLERK_PUBLISHABLE_KEY (or just secret) are in .env
         const verifiedToken = await verifyToken(token, {
             secretKey: process.env.CLERK_SECRET_KEY,
         });
 
-        // Helper to extract metadata (assuming roles are in publicMetadata.role or similar)
-        // The Clerk token payload might not directly contain metadata depending on config.
-        // For simplicity, we might need to fetch user or if using session claims, ensure metadata is in session token.
-        // Let's assume metadata is customized in Clerk Dashboard to be in session token or we fetch it.
-        // For now, let's start with basic verification and assume roles are passed or we don't have them in token yet.
-        // EDIT: Standard Clerk way without extra fetch is putting roles in publicMetadata and adding it to session token template.
-        // Let's assume `metadata` claim exists or similar. 
-        // Actual implementation: verifyToken return type includes payload.
-
         const payload = verifiedToken as any;
-        // Usually roles are in private or public metadata. Let's assume public_metadata for now.
-        // If not present, we default to empty.
-        const roles = (payload.public_metadata?.role as string[]) || [];
+        const userId = payload.sub;
+
+        // Check if user exists in local DB
+        let localUser = await db.select().from(users).where(eq(users.id, userId)).limit(1).then(res => res[0]);
+
+        if (!localUser) {
+            // Fetch user details from Clerk to populate initial data
+            try {
+                const clerkUser = await clerkClient.users.getUser(userId);
+                const primaryEmail = clerkUser.emailAddresses.find(e => e.id === clerkUser.primaryEmailAddressId)?.emailAddress;
+
+                if (primaryEmail) {
+                    const newUser = await db.insert(users).values({
+                        id: userId,
+                        email: primaryEmail,
+                        name: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim(),
+                        role: 'operator', // Default role
+                        status: 'active'
+                    }).returning();
+                    localUser = newUser[0];
+                }
+            } catch (err) {
+                console.error("Error syncing user from Clerk:", err);
+            }
+        }
+
+        const roles = localUser ? [localUser.role] : [];
 
         c.set('auth', {
             userId: payload.sub,
             sessionId: payload.sid,
-            roles: Array.isArray(roles) ? roles : [roles].filter(Boolean) as string[],
+            roles: roles // Use local DB role
         });
+
+        if (localUser) {
+            c.set('user', localUser);
+        }
 
         await next();
     } catch (error) {

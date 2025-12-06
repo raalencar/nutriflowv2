@@ -127,3 +127,37 @@ export const purchaseItems = pgTable('purchase_items', {
     quantity: numeric('quantity').notNull(),
     cost: numeric('cost').notNull(),
 });
+
+export const userStatusEnum = pgEnum('user_status', ['active', 'inactive']);
+export const userRoleEnum = pgEnum('user_role', ['admin', 'manager', 'operator', 'nutritionist', 'chef']);
+
+export const users = pgTable('users', {
+    id: text('id').primaryKey(), // Clerk User ID
+    email: text('email').notNull().unique(),
+    name: text('name'),
+    role: userRoleEnum('role').default('operator').notNull(),
+    status: userStatusEnum('status').default('active').notNull(),
+    createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const teams = pgTable('teams', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    name: text('name').notNull(),
+    description: text('description'),
+});
+
+export const teamMembers = pgTable('team_members', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    teamId: uuid('team_id').references(() => teams.id).notNull(),
+    userId: text('user_id').references(() => users.id).notNull(),
+}, (t) => ({
+    unq: unique().on(t.teamId, t.userId),
+}));
+
+export const teamUnits = pgTable('team_units', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    teamId: uuid('team_id').references(() => teams.id).notNull(),
+    unitId: uuid('unit_id').references(() => units.id).notNull(),
+}, (t) => ({
+    unq: unique().on(t.teamId, t.unitId),
+}));

@@ -75,7 +75,7 @@ export const inviteUserSchema = z.object({
 
 export const updateUserSchema = z.object({
     role: z.string().min(1, "Selecione um cargo"),
-    unitIds: z.array(z.string()).optional(),
+    teamIds: z.array(z.string()).optional(),
 });
 
 export type InviteUserFormValues = z.infer<typeof inviteUserSchema>;

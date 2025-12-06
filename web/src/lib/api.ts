@@ -7,7 +7,8 @@ import {
     ProductionPlan, CreateProductionPlanDTO,
     PurchaseOrder, CreatePurchaseOrderDTO,
     User, UserUnit,
-    MealOffer, CreateMealOfferDTO, UpdateMealOfferDTO
+    MealOffer, CreateMealOfferDTO, UpdateMealOfferDTO,
+    Team, CreateTeamDTO, UpdateTeamDTO
 } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -201,16 +202,59 @@ export async function receivePurchaseOrder(id: string): Promise<void> {
 
 // Admin / Users
 export async function getUsers(): Promise<User[]> {
-    return request<User[]>('/admin/users');
+    return request<User[]>('/users');
 }
 
-export async function updateUserRole(userId: string, roles: string[]): Promise<void> {
-    return request<void>(`/admin/users/${userId}/role`, {
+export async function updateUserRole(userId: string, role: string): Promise<void> {
+    return request<void>(`/users/${userId}/role`, {
         method: 'PUT',
-        body: JSON.stringify({ role: roles }),
+        body: JSON.stringify({ role }),
     });
 }
 
+export async function addUserTeam(userId: string, teamId: string): Promise<void> {
+    return request<void>(`/users/${userId}/teams`, {
+        method: 'POST',
+        body: JSON.stringify({ teamId }),
+    });
+}
+
+export async function removeUserTeam(userId: string, teamId: string): Promise<void> {
+    return request<void>(`/users/${userId}/teams`, {
+        method: 'DELETE',
+        body: JSON.stringify({ teamId }),
+    });
+}
+
+// Teams
+export async function getTeams(): Promise<Team[]> {
+    return request<Team[]>('/teams');
+}
+
+export async function createTeam(data: CreateTeamDTO): Promise<Team> {
+    return request<Team>('/teams', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+}
+
+export async function updateTeam(id: string, data: UpdateTeamDTO): Promise<Team> {
+    return request<Team>(`/teams/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+}
+
+export async function deleteTeam(id: string): Promise<void> {
+    return request<void>(`/teams/${id}`, {
+        method: 'DELETE',
+    });
+}
+
+/* Legacy Unit Assignment - Deprecated by Teams? 
+   Keeping specifically if needed for direct assignment or for reference until refactor is complete.
+   But Plan suggests Teams is the way. I'll keep them but might not use them.
+*/
 export async function getUserUnits(userId: string): Promise<UserUnit[]> {
     return request<UserUnit[]>(`/admin/users/${userId}/units`);
 }

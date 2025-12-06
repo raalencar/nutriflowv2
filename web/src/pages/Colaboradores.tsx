@@ -24,14 +24,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getUsers,
-  getUnits,
-  getUserUnits,
-  addUserUnit,
-  removeUserUnit,
+  getTeams,
   updateUserRole,
+  addUserTeam,
+  removeUserTeam
 } from "@/lib/api";
 import { ROLES } from "@/lib/constants";
-import { User } from "@/types";
+import { User, Team } from "@/types";
 import { UpdateUserFormValues } from "@/lib/schemas";
 import { UserAccessForm } from "@/components/forms/UserAccessForm";
 import { InviteUserDialog } from "@/components/dialogs/InviteUserDialog";
@@ -64,36 +63,30 @@ export default function Colaboradores() {
     queryFn: getUsers,
   });
 
-  const { data: units = [] } = useQuery({
-    queryKey: ["units"],
-    queryFn: getUnits,
-  });
-
-  const { data: userUnitAccess = [] } = useQuery({
-    queryKey: ["userUnits", editingUser?.id],
-    queryFn: () => (editingUser ? getUserUnits(editingUser.id) : Promise.resolve([])),
-    enabled: !!editingUser,
+  const { data: teams = [] } = useQuery({
+    queryKey: ["teams"],
+    queryFn: getTeams,
   });
 
   // Mutations
   const updateRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      await updateUserRole(userId, [role]);
+      await updateUserRole(userId, role);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
     },
   });
 
-  const addUnitMutation = useMutation({
-    mutationFn: async ({ userId, unitId }: { userId: string; unitId: string }) => {
-      await addUserUnit(userId, unitId);
+  const addTeamMutation = useMutation({
+    mutationFn: async ({ userId, teamId }: { userId: string; teamId: string }) => {
+      await addUserTeam(userId, teamId);
     },
   });
 
-  const removeUnitMutation = useMutation({
-    mutationFn: async ({ userId, unitId }: { userId: string; unitId: string }) => {
-      await removeUserUnit(userId, unitId);
+  const removeTeamMutation = useMutation({
+    mutationFn: async ({ userId, teamId }: { userId: string; teamId: string }) => {
+      await removeUserTeam(userId, teamId);
     },
   });
 
@@ -106,13 +99,13 @@ export default function Colaboradores() {
     if (!editingUser) return;
 
     try {
-      const currentRole = editingUser.publicMetadata?.role?.[0] || "";
-      const currentUnitIds = userUnitAccess.map((ua) => ua.unitId);
-      const newUnitIds = data.unitIds || [];
+      const currentRole = editingUser.role;
+      const currentTeamIds = editingUser.teams?.map(t => t.id) || [];
+      const newTeamIds = data.teamIds || [];
 
       // Calculate diff
-      const toAdd = newUnitIds.filter((id) => !currentUnitIds.includes(id));
-      const toRemove = currentUnitIds.filter((id) => !newUnitIds.includes(id));
+      const toAdd = newTeamIds.filter((id) => !currentTeamIds.includes(id));
+      const toRemove = currentTeamIds.filter((id) => !newTeamIds.includes(id));
 
       // Build mutation promises
       const mutations: Promise<any>[] = [];
@@ -127,22 +120,22 @@ export default function Colaboradores() {
         );
       }
 
-      // Add unit additions
-      toAdd.forEach((unitId) => {
+      // Add team additions
+      toAdd.forEach((teamId) => {
         mutations.push(
-          addUnitMutation.mutateAsync({
+          addTeamMutation.mutateAsync({
             userId: editingUser.id,
-            unitId,
+            teamId,
           })
         );
       });
 
-      // Add unit removals
-      toRemove.forEach((unitId) => {
+      // Add team removals
+      toRemove.forEach((teamId) => {
         mutations.push(
-          removeUnitMutation.mutateAsync({
+          removeTeamMutation.mutateAsync({
             userId: editingUser.id,
-            unitId,
+            teamId,
           })
         );
       });
@@ -151,7 +144,7 @@ export default function Colaboradores() {
       await Promise.all(mutations);
 
       toast({ title: "Alterações salvas com sucesso!" });
-      queryClient.invalidateQueries({ queryKey: ["userUnits"] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
       setIsDialogOpen(false);
       setEditingUser(null);
     } catch (error: any) {
@@ -165,10 +158,8 @@ export default function Colaboradores() {
 
   const filteredUsers = users.filter(
     (u) =>
-      (u.firstName?.toLowerCase() || "").includes(search.toLowerCase()) ||
-      (u.primaryEmailAddress?.emailAddress?.toLowerCase() || "").includes(
-        search.toLowerCase()
-      )
+      (u.name?.toLowerCase() || "").includes(search.toLowerCase()) ||
+      (u.email?.toLowerCase() || "").includes(search.toLowerCase())
   );
 
   return (
@@ -205,6 +196,7 @@ export default function Colaboradores() {
                 <TableHead>Usuário</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Cargo</TableHead>
+                <TableHead>Equipes</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -225,6 +217,9 @@ export default function Colaboradores() {
                     <TableCell>
                       <Skeleton className="h-5 w-20" />
                     </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-5 w-32" />
+                    </TableCell>
                     <TableCell className="text-right">
                       <Skeleton className="h-8 w-8 ml-auto" />
                     </TableCell>
@@ -232,7 +227,7 @@ export default function Colaboradores() {
                 ))
               ) : users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8">
+                  <TableCell colSpan={5} className="text-center py-8">
                     <div className="flex flex-col items-center gap-2">
                       <Users className="h-12 w-12 text-muted-foreground/50" />
                       <p className="text-muted-foreground font-medium">
@@ -246,7 +241,7 @@ export default function Colaboradores() {
                 </TableRow>
               ) : filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                     Nenhum resultado encontrado para "{search}"
                   </TableCell>
                 </TableRow>
@@ -256,27 +251,33 @@ export default function Colaboradores() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar>
-                          <AvatarImage src={user.imageUrl} alt={user.firstName || "User"} />
+                          <AvatarImage src={user.imageUrl} alt={user.name || "User"} />
                           <AvatarFallback>
                             <Users className="h-4 w-4" />
                           </AvatarFallback>
                         </Avatar>
                         <span className="font-medium">
-                          {user.firstName} {user.lastName}
+                          {user.name}
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell>{user.primaryEmailAddress?.emailAddress}</TableCell>
+                    <TableCell>{user.email}</TableCell>
                     <TableCell>
-                      {user.publicMetadata?.role?.map((role) => (
-                        <Badge
-                          key={role}
-                          variant={getRoleBadgeVariant(role)}
-                          className="mr-1"
-                        >
-                          {ROLES.find((r) => r.value === role)?.label || role}
-                        </Badge>
-                      ))}
+                      <Badge
+                        variant={getRoleBadgeVariant(user.role)}
+                        className="mr-1"
+                      >
+                        {ROLES.find((r) => r.value === user.role)?.label || user.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {user.teams?.map(team => (
+                          <Badge key={team.id} variant="secondary" className="text-xs">
+                            {team.name}
+                          </Badge>
+                        ))}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" onClick={() => handleEdit(user)}>
@@ -296,19 +297,19 @@ export default function Colaboradores() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              Gerenciar Acesso: {editingUser?.firstName} {editingUser?.lastName}
+              Gerenciar Acesso: {editingUser?.name}
             </DialogTitle>
           </DialogHeader>
           {editingUser && (
             <UserAccessForm
               user={editingUser}
-              units={units}
-              currentUnitIds={userUnitAccess.map((ua) => ua.unitId)}
+              teams={teams}
+              currentTeamIds={editingUser.teams?.map(t => t.id) || []}
               onSubmit={handleFormSubmit}
               isSubmitting={
                 updateRoleMutation.isPending ||
-                addUnitMutation.isPending ||
-                removeUnitMutation.isPending
+                addTeamMutation.isPending ||
+                removeTeamMutation.isPending
               }
             />
           )}

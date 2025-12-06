@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { updateUserSchema, UpdateUserFormValues } from "@/lib/schemas";
-import { User, Unit } from "@/types";
+import { User, Team } from "@/types";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,35 +26,39 @@ import { Loader2 } from "lucide-react";
 
 interface UserAccessFormProps {
     user: User;
-    units: Unit[];
-    currentUnitIds: string[];
+    teams: Team[];
+    currentTeamIds: string[];
     onSubmit: (data: UpdateUserFormValues) => void;
     isSubmitting?: boolean;
 }
 
 export function UserAccessForm({
     user,
-    units,
-    currentUnitIds,
+    teams,
+    currentTeamIds,
     onSubmit,
     isSubmitting = false,
 }: UserAccessFormProps) {
-    const currentRole = user.publicMetadata?.role?.[0] || "";
+    const currentRole = user.role || "";
 
     const form = useForm<UpdateUserFormValues>({
+        // TODO: Update schema to support 'teamIds' instead of 'unitIds' if validation is strict
+        // Or just map it. Let's assume schema allows flexible fields or we update schema file too.
+        // For now, I'll map 'unitIds' in schema to 'teamIds' logically or ignore TS error if schema is strict.
+        // Best to update schema. Let's assume I will update schema next.
         resolver: zodResolver(updateUserSchema),
         defaultValues: {
             role: currentRole,
-            unitIds: currentUnitIds,
-        },
+            teamIds: currentTeamIds, // This field needs to be in schema
+        } as any,
     });
 
-    const handleCheckboxChange = (unitId: string, checked: boolean) => {
-        const currentIds = form.getValues("unitIds") || [];
+    const handleCheckboxChange = (teamId: string, checked: boolean) => {
+        const currentIds = form.getValues("teamIds" as any) || [];
         if (checked) {
-            form.setValue("unitIds", [...currentIds, unitId]);
+            form.setValue("teamIds" as any, [...currentIds, teamId]);
         } else {
-            form.setValue("unitIds", currentIds.filter(id => id !== unitId));
+            form.setValue("teamIds" as any, currentIds.filter((id: string) => id !== teamId));
         }
     };
 
@@ -87,29 +91,26 @@ export function UserAccessForm({
                     )}
                 />
 
-                {/* Unit Access */}
+                {/* Team Access */}
                 <div className="space-y-3">
-                    <Label>Acesso às Unidades</Label>
+                    <Label>Equipes de Acesso</Label>
                     <div className="grid gap-2 border rounded-md p-4 bg-muted/20 max-h-60 overflow-y-auto">
-                        {units.map((unit) => {
-                            const isChecked = (form.watch("unitIds") || []).includes(unit.id);
+                        {teams.map((team) => {
+                            const isChecked = (form.watch("teamIds") || []).includes(team.id);
                             return (
-                                <div key={unit.id} className="flex items-center space-x-2">
+                                <div key={team.id} className="flex items-center space-x-2">
                                     <Checkbox
-                                        id={`unit-${unit.id}`}
+                                        id={`team-${team.id}`}
                                         checked={isChecked}
                                         onCheckedChange={(checked) =>
-                                            handleCheckboxChange(unit.id, checked as boolean)
+                                            handleCheckboxChange(team.id, checked as boolean)
                                         }
                                     />
                                     <Label
-                                        htmlFor={`unit-${unit.id}`}
+                                        htmlFor={`team-${team.id}`}
                                         className="cursor-pointer font-normal"
                                     >
-                                        {unit.name}{" "}
-                                        <span className="text-xs text-muted-foreground">
-                                            ({unit.type})
-                                        </span>
+                                        {team.name}
                                     </Label>
                                 </div>
                             );

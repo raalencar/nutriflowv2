@@ -137,15 +137,31 @@ export interface UserUnit {
 
 export interface User {
     id: string;
+    email: string;
+    name: string | null;
+    role: string;
+    status: 'active' | 'inactive';
+    teams?: { id: string; name: string }[];
+    // Legacy/Clerk fields optional for compatibility during transition if needed
     imageUrl?: string;
-    firstName?: string | null;
-    lastName?: string | null;
-    fullName?: string | null;
-    primaryEmailAddress?: { emailAddress: string } | null;
-    publicMetadata: {
-        role?: string[];
-    };
 }
+
+export interface Team {
+    id: string;
+    name: string;
+    description: string | null;
+    members?: User[];
+    units?: Unit[];
+}
+
+export interface CreateTeamDTO {
+    name: string;
+    description?: string;
+    unitIds?: string[];
+    memberIds?: string[];
+}
+
+export interface UpdateTeamDTO extends Partial<CreateTeamDTO> { }
 
 // Meal Offers
 export interface MealOffer {

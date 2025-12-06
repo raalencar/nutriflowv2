@@ -14,6 +14,8 @@ import { authMiddleware, requireRole } from './middleware/auth';
 import adminRoutes from './routes/admin';
 import webhookRoutes from './routes/webhook';
 import mealOffersRoutes from './routes/meal-offers';
+import userRoutes from './routes/users';
+import teamRoutes from './routes/teams';
 
 
 // ... existing imports ...
@@ -32,10 +34,13 @@ const api = new Hono();
 app.use('/api/*', authMiddleware);
 
 
+
 // Mount Admin Routes
-app.route('/api/admin', adminRoutes);
+app.route('/api/admin', adminRoutes); // Keep for legacy if needed, or remove? Plan didn't explicitly say remove.
 app.route('/api/webhook', webhookRoutes);
 app.route('/api/meal-offers', mealOffersRoutes);
+app.route('/api/users', userRoutes);
+app.route('/api/teams', teamRoutes);
 
 
 // Units
