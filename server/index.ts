@@ -241,7 +241,7 @@ app.route('/api/production', productionRoutes);
 app.route('/api/purchases', purchaseRoutes);
 
 const port = Number(process.env.PORT) || 3000;
-console.log(`Server is running on port ${port}`);
+console.log(`🚀 Server is running on port ${port}`);
 
 serve({
     fetch: app.fetch,
