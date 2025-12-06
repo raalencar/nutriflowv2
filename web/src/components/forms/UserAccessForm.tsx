@@ -53,13 +53,11 @@ export function UserAccessForm({
         } as any,
     });
 
-    const handleCheckboxChange = (teamId: string, checked: boolean) => {
-        const currentIds = form.getValues("teamIds" as any) || [];
-        if (checked) {
-            form.setValue("teamIds" as any, [...currentIds, teamId]);
-        } else {
-            form.setValue("teamIds" as any, currentIds.filter((id: string) => id !== teamId));
-        }
+    const selectedTeamId = form.watch("teamIds")?.[0];
+    const selectedTeam = teams.find(t => t.id === selectedTeamId);
+
+    const handleTeamChange = (teamId: string) => {
+        form.setValue("teamIds", [teamId]);
     };
 
     return (
@@ -91,32 +89,48 @@ export function UserAccessForm({
                     )}
                 />
 
-                {/* Team Access */}
+                {/* Team Selection */}
                 <div className="space-y-3">
-                    <Label>Equipes de Acesso</Label>
-                    <div className="grid gap-2 border rounded-md p-4 bg-muted/20 max-h-60 overflow-y-auto">
-                        {teams.map((team) => {
-                            const isChecked = (form.watch("teamIds") || []).includes(team.id);
-                            return (
-                                <div key={team.id} className="flex items-center space-x-2">
-                                    <Checkbox
-                                        id={`team-${team.id}`}
-                                        checked={isChecked}
-                                        onCheckedChange={(checked) =>
-                                            handleCheckboxChange(team.id, checked as boolean)
-                                        }
-                                    />
-                                    <Label
-                                        htmlFor={`team-${team.id}`}
-                                        className="cursor-pointer font-normal"
-                                    >
-                                        {team.name}
-                                    </Label>
-                                </div>
-                            );
-                        })}
-                    </div>
+                    <Label>Equipe</Label>
+                    <Select
+                        onValueChange={handleTeamChange}
+                        value={selectedTeamId || ""}
+                    >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Selecione uma equipe" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {teams.map((team) => (
+                                <SelectItem key={team.id} value={team.id}>
+                                    {team.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <p className="text-sm text-muted-foreground">
+                        O usuário terá acesso às unidades definidas na equipe selecionada.
+                    </p>
                 </div>
+
+                {/* Access Preview */}
+                {selectedTeam && (
+                    <div className="space-y-2 border rounded-md p-4 bg-muted/20">
+                        <Label className="text-xs font-semibold uppercase text-muted-foreground">
+                            Acesso a Unidades ({selectedTeam.units?.length || 0})
+                        </Label>
+                        <div className="flex flex-wrap gap-1">
+                            {selectedTeam.units?.length ? (
+                                selectedTeam.units.map(u => (
+                                    <span key={u.id} className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                                        {u.name}
+                                    </span>
+                                ))
+                            ) : (
+                                <span className="text-sm text-muted-foreground">Nenhuma unidade vinculada a esta equipe.</span>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

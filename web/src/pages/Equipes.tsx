@@ -1,16 +1,8 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-} from "@/components/ui/dialog";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import {
     Table,
     TableBody,
@@ -19,308 +11,341 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Plus, Edit, Trash2, Users, Tent } from "lucide-react"; // Tent as Unit icon placeholder
-import { useToast } from "@/hooks/use-toast";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
 import {
-    getTeams,
-    createTeam,
-    updateTeam,
-    deleteTeam,
-    getUnits,
-} from "@/lib/api";
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Plus, Pencil, Trash2, Users, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { getTeams, createTeam, updateTeam, deleteTeam, getUnits } from "@/lib/api";
 import { Team, CreateTeamDTO, Unit } from "@/types";
-import { Loader2 } from "lucide-react";
-import { useForm } from "react-hook-form";
+
+const teamSchema = z.object({
+    name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
+    description: z.string().optional(),
+    unitIds: z.array(z.string()).min(1, "Selecione pelo menos uma unidade"),
+});
+
+type TeamFormValues = z.infer<typeof teamSchema>;
 
 export default function Equipes() {
-    const { toast } = useToast();
-    const queryClient = useQueryClient();
-    const [search, setSearch] = useState("");
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingTeam, setEditingTeam] = useState<Team | null>(null);
+    const queryClient = useQueryClient();
 
-    // Queries
     const { data: teams = [], isLoading: isLoadingTeams } = useQuery({
         queryKey: ["teams"],
         queryFn: getTeams,
     });
 
-    const { data: units = [] } = useQuery({
+    const { data: units = [], isLoading: isLoadingUnits } = useQuery({
         queryKey: ["units"],
         queryFn: getUnits,
     });
 
-    // Mutations
     const createMutation = useMutation({
         mutationFn: createTeam,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["teams"] });
-            toast({ title: "Equipe criada com sucesso!" });
+            toast.success("Equipe criada com sucesso");
             setIsDialogOpen(false);
         },
-        onError: (error: any) => {
-            toast({ title: "Erro ao criar equipe", description: error.message, variant: "destructive" });
-        }
+        onError: (error) => {
+            toast.error(`Erro ao criar equipe: ${error.message}`);
+        },
     });
 
     const updateMutation = useMutation({
-        mutationFn: ({ id, data }: { id: string; data: Partial<Team> }) =>
+        mutationFn: ({ id, data }: { id: string; data: CreateTeamDTO }) =>
             updateTeam(id, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["teams"] });
-            toast({ title: "Equipe atualizada com sucesso!" });
+            toast.success("Equipe atualizada com sucesso");
             setIsDialogOpen(false);
+            setEditingTeam(null);
         },
-        onError: (error: any) => {
-            toast({ title: "Erro ao atualizar equipe", description: error.message, variant: "destructive" });
-        }
+        onError: (error) => {
+            toast.error(`Erro ao atualizar equipe: ${error.message}`);
+        },
     });
 
     const deleteMutation = useMutation({
         mutationFn: deleteTeam,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["teams"] });
-            toast({ title: "Equipe removida com sucesso!" });
+            toast.success("Equipe removida com sucesso");
+        },
+        onError: (error) => {
+            toast.error(`Erro ao remover equipe: ${error.message}`);
         },
     });
 
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        const formData = new FormData(e.currentTarget);
-        const name = formData.get("name") as string;
-        const description = formData.get("description") as string;
+    const handleSubmit = (data: TeamFormValues) => {
+        const teamData: CreateTeamDTO = {
+            name: data.name,
+            description: data.description,
+            unitIds: data.unitIds,
+        };
 
-        // Manual handling of checkboxes (simplified)
-        // In a real form library use context, but raw form data works for checkboxes if named same
-        // But controlled is easier for multi-select logic mapping
-        // Let's use controlled state for units inside the dialog or simple ref
-        // For now, let's extract from form elements manually if needed or use state.
-        // Actually, let's use a simple local state for selectedUnitIds in the form component 
-        // BUT since I am inline, I'll need to capture it.
-        // See TeamForm component below.
+        if (editingTeam) {
+            updateMutation.mutate({ id: editingTeam.id, data: teamData });
+        } else {
+            createMutation.mutate(teamData);
+        }
     };
 
-    const openNew = () => {
-        setEditingTeam(null);
-        setIsDialogOpen(true);
-    };
-
-    const openEdit = (team: Team) => {
+    const handleEdit = (team: Team) => {
         setEditingTeam(team);
         setIsDialogOpen(true);
     };
 
-    const handleDelete = async (id: string) => {
-        if (confirm("Tem certeza que deseja excluir esta equipe?")) {
+    const handleDelete = (id: string) => {
+        if (confirm("Tem certeza que deseja remover esta equipe?")) {
             deleteMutation.mutate(id);
         }
-    }
-
-    const filteredTeams = teams.filter((t) =>
-        t.name.toLowerCase().includes(search.toLowerCase())
-    );
+    };
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground">Equipes</h1>
-                    <p className="text-muted-foreground">Grupos de acesso e permissões</p>
+                    <h1 className="text-3xl font-bold tracking-tight">Equipes</h1>
+                    <p className="text-muted-foreground">
+                        Gerencie as equipes e seus acessos às unidades.
+                    </p>
                 </div>
-                <Button className="gap-2" onClick={openNew}>
-                    <Plus className="h-4 w-4" />
-                    Nova Equipe
-                </Button>
+                <Dialog
+                    open={isDialogOpen}
+                    onOpenChange={(open) => {
+                        setIsDialogOpen(open);
+                        if (!open) setEditingTeam(null);
+                    }}
+                >
+                    <DialogTrigger asChild>
+                        <Button>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Nova Equipe
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[600px]">
+                        <DialogHeader>
+                            <DialogTitle>
+                                {editingTeam ? "Editar Equipe" : "Nova Equipe"}
+                            </DialogTitle>
+                        </DialogHeader>
+                        <TeamForm
+                            defaultValues={
+                                editingTeam
+                                    ? {
+                                        name: editingTeam.name,
+                                        description: editingTeam.description || "",
+                                        unitIds: editingTeam.units?.map((u) => u.id) || [],
+                                    }
+                                    : { name: "", description: "", unitIds: [] }
+                            }
+                            onSubmit={handleSubmit}
+                            units={units}
+                            isLoading={createMutation.isPending || updateMutation.isPending}
+                        />
+                    </DialogContent>
+                </Dialog>
             </div>
 
-            <Card>
-                <CardHeader>
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Buscar equipes..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="pl-10 max-w-sm"
-                        />
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
+            <div className="border rounded-lg">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Nome</TableHead>
+                            <TableHead>Descrição</TableHead>
+                            <TableHead>Unidades de Acesso</TableHead>
+                            <TableHead>Membros</TableHead>
+                            <TableHead className="w-[100px]">Ações</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {isLoadingTeams ? (
                             <TableRow>
-                                <TableHead>Nome</TableHead>
-                                <TableHead>Descrição</TableHead>
-                                <TableHead>Unidades</TableHead>
-                                <TableHead>Membros</TableHead>
-                                <TableHead className="text-right">Ações</TableHead>
+                                <TableCell colSpan={5} className="h-24 text-center">
+                                    <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                                </TableCell>
                             </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {isLoadingTeams ? (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-4">
-                                        <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                        ) : teams.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                    Nenhuma equipe cadastrada.
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            teams.map((team) => (
+                                <TableRow key={team.id}>
+                                    <TableCell className="font-medium">{team.name}</TableCell>
+                                    <TableCell>{team.description}</TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-wrap gap-1">
+                                            {team.units?.slice(0, 3).map((unit) => (
+                                                <Badge key={unit.id} variant="outline">
+                                                    {unit.name}
+                                                </Badge>
+                                            ))}
+                                            {(team.units?.length || 0) > 3 && (
+                                                <Badge variant="secondary">
+                                                    +{team.units!.length - 3}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-1 text-muted-foreground">
+                                            <Users className="h-4 w-4" />
+                                            <span>{team.members?.length || 0}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => handleEdit(team)}
+                                            >
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="text-destructive hover:text-destructive"
+                                                onClick={() => handleDelete(team.id)}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
-                            ) : filteredTeams.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                        Nenhuma equipe encontrada
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                filteredTeams.map((team) => (
-                                    <TableRow key={team.id}>
-                                        <TableCell className="font-medium">{team.name}</TableCell>
-                                        <TableCell>{team.description}</TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-wrap gap-1">
-                                                {team.units?.map(u => (
-                                                    <Badge key={u.id} variant="secondary" className="text-xs">
-                                                        {u.name}
-                                                    </Badge>
-                                                ))}
-                                                {(!team.units || team.units.length === 0) && <span className="text-muted-foreground text-xs">-</span>}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-1 text-muted-foreground">
-                                                <Users className="h-3 w-3" />
-                                                <span className="text-sm">{team.members?.length || 0}</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-right space-x-2">
-                                            <Button variant="ghost" size="icon" onClick={() => openEdit(team)}>
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" onClick={() => handleDelete(team.id)}>
-                                                <Trash2 className="h-4 w-4 text-destructive" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
-
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>
-                            {editingTeam ? "Editar Equipe" : "Nova Equipe"}
-                        </DialogTitle>
-                        <DialogDescription>
-                            Configure o acesso para este grupo.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <TeamForm
-                        team={editingTeam}
-                        units={units}
-                        onSubmit={async (data) => {
-                            if (editingTeam) {
-                                await updateMutation.mutateAsync({ id: editingTeam.id, data });
-                            } else {
-                                await createMutation.mutateAsync(data as CreateTeamDTO);
-                            }
-                        }}
-                        isSubmitting={createMutation.isPending || updateMutation.isPending}
-                    />
-                </DialogContent>
-            </Dialog>
+                            ))
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
         </div>
     );
 }
 
-function TeamForm({ team, units, onSubmit, isSubmitting }: {
-    team: Team | null,
-    units: Unit[],
-    onSubmit: (data: any) => Promise<void>,
-    isSubmitting: boolean
+function TeamForm({
+    defaultValues,
+    onSubmit,
+    units,
+    isLoading,
+}: {
+    defaultValues: TeamFormValues;
+    onSubmit: (data: TeamFormValues) => void;
+    units: Unit[];
+    isLoading: boolean;
 }) {
-    // Simple controlled form state
-    const [name, setName] = useState(team?.name || "");
-    const [description, setDescription] = useState(team?.description || "");
-    const [selectedUnitIds, setSelectedUnitIds] = useState<string[]>(
-        team?.units?.map(u => u.id) || []
-    );
+    const form = useForm<TeamFormValues>({
+        resolver: zodResolver(teamSchema),
+        defaultValues,
+    });
 
-    const toggleUnit = (unitId: string, checked: boolean) => {
+    const handleCheckboxChange = (unitId: string, checked: boolean) => {
+        const currentIds = form.getValues("unitIds") || [];
         if (checked) {
-            setSelectedUnitIds(prev => [...prev, unitId]);
+            form.setValue("unitIds", [...currentIds, unitId]);
         } else {
-            setSelectedUnitIds(prev => prev.filter(id => id !== unitId));
+            form.setValue("unitIds", currentIds.filter((id) => id !== unitId));
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        onSubmit({
-            name,
-            description,
-            unitIds: selectedUnitIds
-        });
-    };
-
     return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-                <Label htmlFor="name">Nome da Equipe</Label>
-                <Input
-                    id="name"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    required
-                    placeholder="Ex: Gerentes SP"
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Nome da Equipe</FormLabel>
+                            <FormControl>
+                                <Input placeholder="Ex: Produção - Manhã" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
                 />
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="description">Descrição</Label>
-                <Textarea
-                    id="description"
-                    value={description}
-                    onChange={e => setDescription(e.target.value)}
-                    placeholder="Descrição das responsabilidades..."
-                />
-            </div>
-
-            <div className="space-y-2">
-                <Label>Acesso às Unidades</Label>
-                <div className="grid gap-2 border rounded-md p-4 bg-muted/20 max-h-60 overflow-y-auto">
-                    {units.map((unit) => {
-                        const isChecked = selectedUnitIds.includes(unit.id);
-                        return (
-                            <div key={unit.id} className="flex items-center space-x-2">
-                                <Checkbox
-                                    id={`unit-${unit.id}`}
-                                    checked={isChecked}
-                                    onCheckedChange={(checked) =>
-                                        toggleUnit(unit.id, checked as boolean)
-                                    }
+                <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Descrição</FormLabel>
+                            <FormControl>
+                                <Textarea
+                                    placeholder="Detalhes sobre a equipe..."
+                                    className="resize-none"
+                                    {...field}
                                 />
-                                <Label
-                                    htmlFor={`unit-${unit.id}`}
-                                    className="cursor-pointer font-normal"
-                                >
-                                    {unit.name}
-                                </Label>
-                            </div>
-                        );
-                    })}
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <div className="space-y-3">
+                    <Label>Unidades de Acesso</Label>
+                    <div className="grid gap-2 border rounded-md p-4 bg-muted/20 max-h-60 overflow-y-auto">
+                        {units.map((unit) => {
+                            const isChecked = (form.watch("unitIds") || []).includes(unit.id);
+                            return (
+                                <div key={unit.id} className="flex items-center space-x-2">
+                                    <Checkbox
+                                        id={`unit-${unit.id}`}
+                                        checked={isChecked}
+                                        onCheckedChange={(checked) =>
+                                            handleCheckboxChange(unit.id, checked as boolean)
+                                        }
+                                    />
+                                    <Label
+                                        htmlFor={`unit-${unit.id}`}
+                                        className="cursor-pointer font-normal"
+                                    >
+                                        {unit.name}
+                                    </Label>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    {form.formState.errors.unitIds && (
+                        <p className="text-sm font-medium text-destructive">
+                            {form.formState.errors.unitIds.message}
+                        </p>
+                    )}
                 </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-                <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Salvar
-                </Button>
-            </div>
-        </form>
+                <div className="flex justify-end space-x-2">
+                    <Button type="submit" disabled={isLoading}>
+                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Salvar
+                    </Button>
+                </div>
+            </form>
+        </Form>
     );
 }
