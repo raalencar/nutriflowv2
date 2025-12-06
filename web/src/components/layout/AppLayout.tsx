@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import {
@@ -36,6 +37,7 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const queryClient = useQueryClient();
   const { logout, user } = useAuth();
 
   return (
@@ -98,7 +100,10 @@ export function AppLayout({ children }: AppLayoutProps) {
           <Button
             variant="ghost"
             className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            onClick={() => logout()}
+            onClick={() => {
+              queryClient.removeQueries();
+              logout();
+            }}
           >
             <LogOut className="h-5 w-5" />
             Sair

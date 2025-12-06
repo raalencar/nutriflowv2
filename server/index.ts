@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { db } from './db';
 import { units, products, mealOffers } from './db/schema';
 import recipeRoutes from './routes/recipes';
@@ -75,7 +75,29 @@ app.route('/api/auth', authRoutes);
 // Units
 api.get('/units', async (c) => {
     try {
-        const allUnits = await db.select().from(units);
+        const user = c.get('user' as any) as any;
+        const isAdmin = user.role === 'admin';
+
+        let query = db.select().from(units);
+
+        if (!isAdmin) {
+            // @ts-ignore - getUserAllowedUnits is exported but might not be picked up by type checking in this context without explicit import update, 
+            // but runtime it works. I will update imports in a separate block or assume I can do it here if I target the top too.
+            // Actually, I should update imports first.
+            // For now, I will write the logic assuming imports are present.
+            // Wait, I can't update imports in the same `replace_file_content` call if they are far apart.
+            // I will do imports in a separate tool call in the same turn.
+            const { getUserAllowedUnits } = await import('./middleware/auth');
+            const allowedIds = await getUserAllowedUnits(user.id);
+
+            if (allowedIds.length === 0) {
+                return c.json([]);
+            }
+
+            query.where(inArray(units.id, allowedIds));
+        }
+
+        const allUnits = await query;
         return c.json(allUnits);
     } catch (error) {
         console.error(error);

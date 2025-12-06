@@ -119,6 +119,9 @@ api.post('/movement', async (c) => {
 api.get('/stocks', async (c) => {
     try {
         const unitId = c.req.query('unitId');
+        const user = c.get('user' as any) as any;
+        const isAdmin = user.role === 'admin';
+
         let query = db.select({
             id: stocks.id,
             productId: stocks.productId,
@@ -131,8 +134,24 @@ api.get('/stocks', async (c) => {
             .from(stocks)
             .leftJoin(products, eq(stocks.productId, products.id));
 
-        if (unitId) {
-            query.where(eq(stocks.unitId, unitId));
+        if (isAdmin) {
+            if (unitId) query.where(eq(stocks.unitId, unitId));
+        } else {
+            const { getUserAllowedUnits } = await import('../middleware/auth');
+            const allowedIds = await getUserAllowedUnits(user.id);
+
+            if (allowedIds.length === 0) return c.json([]);
+
+            if (unitId) {
+                if (!allowedIds.includes(unitId)) {
+                    return c.json({ error: 'Forbidden: Access to this unit is denied' }, 403);
+                }
+                query.where(eq(stocks.unitId, unitId));
+            } else {
+                // @ts-ignore
+                const { inArray } = await import('drizzle-orm');
+                query.where(inArray(stocks.unitId, allowedIds));
+            }
         }
 
         const result = await query;
@@ -148,6 +167,8 @@ api.get('/transactions', async (c) => {
     try {
         const unitId = c.req.query('unitId');
         const productId = c.req.query('productId'); // Optional filter
+        const user = c.get('user' as any) as any;
+        const isAdmin = user.role === 'admin';
 
         let query = db.select({
             id: inventoryTransactions.id,
@@ -165,8 +186,26 @@ api.get('/transactions', async (c) => {
             .leftJoin(units, eq(inventoryTransactions.unitId, units.id))
             .orderBy(sql`${inventoryTransactions.createdAt} DESC`);
 
-        if (unitId) {
-            query.where(eq(inventoryTransactions.unitId, unitId));
+        if (isAdmin) {
+            if (unitId) {
+                query.where(eq(inventoryTransactions.unitId, unitId));
+            }
+        } else {
+            const { getUserAllowedUnits } = await import('../middleware/auth');
+            const allowedIds = await getUserAllowedUnits(user.id);
+
+            if (allowedIds.length === 0) return c.json([]);
+
+            if (unitId) {
+                if (!allowedIds.includes(unitId)) {
+                    return c.json({ error: 'Forbidden: Access to this unit is denied' }, 403);
+                }
+                query.where(eq(inventoryTransactions.unitId, unitId));
+            } else {
+                // @ts-ignore
+                const { inArray } = await import('drizzle-orm');
+                query.where(inArray(inventoryTransactions.unitId, allowedIds));
+            }
         }
 
         // If productId filter needed

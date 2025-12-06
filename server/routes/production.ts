@@ -9,9 +9,29 @@ const api = new Hono();
 api.get('/', async (c) => {
     try {
         const unitId = c.req.query('unitId');
+        const user = c.get('user' as any) as any;
+        const isAdmin = user.role === 'admin';
+
         let query = db.select().from(productionPlans);
-        if (unitId) {
-            query.where(eq(productionPlans.unitId, unitId));
+
+        if (isAdmin) {
+            if (unitId) query.where(eq(productionPlans.unitId, unitId));
+        } else {
+            const { getUserAllowedUnits } = await import('../middleware/auth');
+            const allowedIds = await getUserAllowedUnits(user.id);
+
+            if (allowedIds.length === 0) return c.json([]);
+
+            if (unitId) {
+                if (!allowedIds.includes(unitId)) {
+                    return c.json({ error: 'Forbidden: Access to this unit is denied' }, 403);
+                }
+                query.where(eq(productionPlans.unitId, unitId));
+            } else {
+                // @ts-ignore
+                const { inArray } = await import('drizzle-orm');
+                query.where(inArray(productionPlans.unitId, allowedIds));
+            }
         }
         const result = await query;
         return c.json(result);

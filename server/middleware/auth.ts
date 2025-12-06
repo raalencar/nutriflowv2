@@ -1,7 +1,7 @@
 import { createMiddleware } from 'hono/factory';
 import { verify } from 'jsonwebtoken';
 import { db } from '../db';
-import { users, userUnits } from '../db/schema';
+import { users, userUnits, teamMembers, teamUnits } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
@@ -83,11 +83,28 @@ export const requireUnitAccess = () => createMiddleware<{ Variables: AuthVariabl
     await next();
 });
 
-export async function hasUnitAccess(userId: string, unitId: string): Promise<boolean> {
-    const access = await db.select()
+export async function getUserAllowedUnits(userId: string): Promise<string[]> {
+    // 1. Get units from direct assignment (Legacy)
+    const directUnits = await db.select({ unitId: userUnits.unitId })
         .from(userUnits)
-        .where(and(eq(userUnits.userId, userId), eq(userUnits.unitId, unitId)))
-        .limit(1);
+        .where(eq(userUnits.userId, userId));
 
-    return access.length > 0;
+    // 2. Get units from teams
+    const teamUnitsList = await db.select({ unitId: teamUnits.unitId })
+        .from(teamMembers)
+        .innerJoin(teamUnits, eq(teamMembers.teamId, teamUnits.teamId))
+        .where(eq(teamMembers.userId, userId));
+
+    // Combine and deduplicate
+    const allUnitIds = new Set([
+        ...directUnits.map(u => u.unitId),
+        ...teamUnitsList.map(u => u.unitId)
+    ]);
+
+    return Array.from(allUnitIds);
+}
+
+export async function hasUnitAccess(userId: string, unitId: string): Promise<boolean> {
+    const allowedUnits = await getUserAllowedUnits(userId);
+    return allowedUnits.includes(unitId);
 }
