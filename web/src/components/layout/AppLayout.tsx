@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useClerk, useUser } from "@clerk/clerk-react";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -25,6 +26,7 @@ const navigation = [
   { name: "Compras", href: "/compras", icon: ShoppingCart },
   { name: "Produção", href: "/producao", icon: CalendarCheck },
   { name: "Colaboradores", href: "/colaboradores", icon: Users },
+  { name: "Equipes", href: "/equipes", icon: Users }, // Added Equipes to nav if not already there, assuming user wants it in menu
 ];
 
 interface AppLayoutProps {
@@ -34,6 +36,8 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const { signOut } = useClerk();
+  const { user } = useUser();
 
   return (
     <div className="min-h-screen bg-background">
@@ -48,11 +52,11 @@ export function AppLayout({ children }: AppLayoutProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transform transition-transform duration-200 ease-in-out lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transform transition-transform duration-200 ease-in-out lg:translate-x-0 flex flex-col",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex h-16 items-center justify-between px-6 border-b border-border">
+        <div className="flex h-16 items-center justify-between px-6 border-b border-border shrink-0">
           <Link to="/" className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <ChefHat className="h-5 w-5 text-primary-foreground" />
@@ -69,7 +73,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           </Button>
         </div>
 
-        <nav className="flex flex-col gap-1 p-4">
+        <nav className="flex-1 flex flex-col gap-1 p-4 overflow-y-auto">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;
             return (
@@ -91,8 +95,12 @@ export function AppLayout({ children }: AppLayoutProps) {
           })}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
-          <Button variant="ghost" className="w-full justify-start gap-3 text-muted-foreground">
+        <div className="shrink-0 p-4 border-t border-border mt-auto">
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            onClick={() => signOut()}
+          >
             <LogOut className="h-5 w-5" />
             Sair
           </Button>
@@ -113,8 +121,14 @@ export function AppLayout({ children }: AppLayoutProps) {
           </Button>
           <div className="flex-1" />
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-              <span className="text-sm font-medium text-primary-foreground">AD</span>
+            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center overflow-hidden">
+              {user?.imageUrl ? (
+                <img src={user.imageUrl} alt={user.fullName || "User"} className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-sm font-medium text-primary-foreground">
+                  {user?.firstName?.charAt(0) || "U"}
+                </span>
+              )}
             </div>
           </div>
         </header>
