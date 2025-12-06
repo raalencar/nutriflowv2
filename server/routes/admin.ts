@@ -3,6 +3,9 @@ import { db } from '../db';
 import { userUnits } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { requireRole } from '../middleware/auth';
+import { createClerkClient } from '@clerk/backend';
+
+const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
 const admin = new Hono();
 
@@ -82,25 +85,39 @@ admin.get('/users/:userId/units', async (c) => {
 // List all users (Mocked or simple implementation)
 // In a real app with Clerk, we would use clerkClient.users.getUserList()
 admin.get('/users', async (c) => {
-    // For now, return a mocked list + existing DB users logic if needed.
-    // Or if we want to be fancy, we can try to use the Clerk SDK if configured.
-    // Let's return the mocked structure the frontend expects,
-    // but clearly marked.
-    return c.json([
-        { id: "user_2p...", imageUrl: "", firstName: "Admin", lastName: "User", publicMetadata: { role: ["admin"] }, email: "admin@example.com" },
-        { id: "user_2q...", imageUrl: "", firstName: "Gerente", lastName: "Silva", publicMetadata: { role: ["manager"] }, email: "gerente@example.com" },
-    ]);
+    try {
+        const response = await clerkClient.users.getUserList({ limit: 100 });
+        // Map users to include primaryEmailAddress for frontend compatibility
+        const users = response.data.map(user => {
+            const primaryEmail = user.emailAddresses.find(e => e.id === user.primaryEmailAddressId);
+            return {
+                ...user,
+                primaryEmailAddress: primaryEmail
+            };
+        });
+        return c.json(users);
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        return c.json({ error: 'Failed to fetch users' }, 500);
+    }
 });
 
-// Update user role (Mocked - Real implementation requires Clerk Backend API)
+// Update user role
 admin.put('/users/:userId/role', async (c) => {
     const userId = c.req.param('userId');
-    const { role } = await c.req.json(); // expect array of roles
+    const { role } = await c.req.json();
 
-    // Here we would call clerkClient.users.updateUser(userId, { publicMetadata: { role: role } })
-    console.log(`[Mock] Updating user ${userId} role to ${role}`);
-
-    return c.json({ success: true, message: 'Role updated (mock)' });
+    try {
+        await clerkClient.users.updateUser(userId, {
+            publicMetadata: {
+                role: role // Clerk expects an object for metadata updates
+            }
+        });
+        return c.json({ success: true });
+    } catch (error) {
+        console.error('Error updating user role:', error);
+        return c.json({ error: 'Failed to update role' }, 500);
+    }
 });
 
 export default admin;

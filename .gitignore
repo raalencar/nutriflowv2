@@ -1,0 +1,11 @@
+node_modules
+.DS_Store
+.env
+dist
+build
+.vercel
+.cache
+coverage
+.idea
+.vscode
+*.log
